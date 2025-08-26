@@ -1,0 +1,274 @@
+syntax = "proto3";
+
+package collective.proto;
+
+option go_package = "collective/pkg/protocol";
+
+service Coordinator {
+  rpc PeerConnect(PeerConnectRequest) returns (PeerConnectResponse);
+  rpc PeerDisconnect(PeerDisconnectRequest) returns (PeerDisconnectResponse);
+  rpc ShareNodeList(ShareNodeListRequest) returns (ShareNodeListResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc StoreFile(StoreFileRequest) returns (StoreFileResponse);
+  rpc RetrieveFile(RetrieveFileRequest) returns (RetrieveFileResponse);
+  rpc UpdateMetadata(UpdateMetadataRequest) returns (UpdateMetadataResponse);
+  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc SyncState(SyncStateRequest) returns (SyncStateResponse);
+  
+  // Directory operations
+  rpc CreateDirectory(CreateDirectoryRequest) returns (CreateDirectoryResponse);
+  rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
+  rpc DeleteDirectory(DeleteDirectoryRequest) returns (DeleteDirectoryResponse);
+  rpc StatEntry(StatEntryRequest) returns (StatEntryResponse);
+  rpc MoveEntry(MoveEntryRequest) returns (MoveEntryResponse);
+  
+  // Path-based file operations
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+  rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
+  rpc WriteFile(WriteFileRequest) returns (WriteFileResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}
+
+message GetStatusRequest {}
+
+message GetStatusResponse {
+  string member_id = 1;
+  repeated NodeInfo local_nodes = 2;
+  repeated PeerInfo peers = 3;
+  int32 total_files = 4;
+  int64 total_storage_capacity = 5;
+  int64 used_storage_capacity = 6;
+  repeated NodeInfo remote_nodes = 7;
+}
+
+message PeerInfo {
+  string member_id = 1;
+  string address = 2;
+  bool is_healthy = 3;
+  int64 last_seen = 4;
+}
+
+message RegisterNodeRequest {
+  string node_id = 1;
+  string member_id = 2;
+  string address = 3;
+  int64 total_capacity = 4;
+}
+
+message RegisterNodeResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PeerConnectRequest {
+  string member_id = 1;
+  string address = 2;
+  repeated NodeInfo nodes = 3;
+}
+
+message PeerConnectResponse {
+  bool accepted = 1;
+  string member_id = 2;
+  repeated NodeInfo nodes = 3;
+}
+
+message PeerDisconnectRequest {
+  string member_id = 1;
+}
+
+message PeerDisconnectResponse {
+  bool success = 1;
+}
+
+message ShareNodeListRequest {
+  string member_id = 1;
+  repeated NodeInfo nodes = 2;
+}
+
+message ShareNodeListResponse {
+  bool success = 1;
+}
+
+message NodeInfo {
+  string node_id = 1;
+  string member_id = 2;
+  string address = 3;
+  int64 total_capacity = 4;
+  int64 used_capacity = 5;
+  bool is_healthy = 6;
+}
+
+message HeartbeatRequest {
+  string member_id = 1;
+  int64 timestamp = 2;
+}
+
+message HeartbeatResponse {
+  string member_id = 1;
+  int64 timestamp = 2;
+}
+
+message StoreFileRequest {
+  string file_id = 1;
+  bytes data = 2;
+  string filename = 3;
+}
+
+message StoreFileResponse {
+  bool success = 1;
+  string file_id = 2;
+  repeated ChunkLocation locations = 3;
+}
+
+message RetrieveFileRequest {
+  string file_id = 1;
+}
+
+message RetrieveFileResponse {
+  bool success = 1;
+  bytes data = 2;
+  FileMetadata metadata = 3;
+}
+
+message UpdateMetadataRequest {
+  string file_id = 1;
+  FileMetadata metadata = 2;
+}
+
+message UpdateMetadataResponse {
+  bool success = 1;
+}
+
+message FileMetadata {
+  string file_id = 1;
+  string filename = 2;
+  int64 size = 3;
+  repeated ChunkLocation chunks = 4;
+  int64 created_at = 5;
+  string owner_member_id = 6;
+}
+
+message ChunkLocation {
+  string chunk_id = 1;
+  string node_id = 2;
+  int32 index = 3;
+  int64 size = 4;
+}
+
+// SyncState messages for periodic state synchronization
+message SyncStateRequest {
+  string member_id = 1;
+  int64 timestamp = 2;
+  repeated NodeInfo nodes = 3;          // All nodes this coordinator knows about
+  repeated PeerInfo known_peers = 4;    // All peers this coordinator knows about
+}
+
+message SyncStateResponse {
+  bool success = 1;
+  repeated NodeInfo nodes = 2;          // All nodes the responder knows about
+  repeated PeerInfo known_peers = 3;    // All peers the responder knows about
+}
+
+// Directory operation messages
+message CreateDirectoryRequest {
+  string path = 1;
+  uint32 mode = 2;
+}
+
+message CreateDirectoryResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListDirectoryRequest {
+  string path = 1;
+}
+
+message ListDirectoryResponse {
+  bool success = 1;
+  repeated DirectoryEntry entries = 2;
+}
+
+message DeleteDirectoryRequest {
+  string path = 1;
+  bool recursive = 2;
+}
+
+message DeleteDirectoryResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message StatEntryRequest {
+  string path = 1;
+}
+
+message StatEntryResponse {
+  bool success = 1;
+  DirectoryEntry entry = 2;
+}
+
+message MoveEntryRequest {
+  string old_path = 1;
+  string new_path = 2;
+}
+
+message MoveEntryResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DirectoryEntry {
+  string name = 1;
+  string path = 2;
+  bool is_directory = 3;
+  int64 size = 4;
+  uint32 mode = 5;
+  int64 modified_time = 6;
+  string owner = 7;
+}
+
+// Path-based file operation messages
+message CreateFileRequest {
+  string path = 1;
+  uint32 mode = 2;
+}
+
+message CreateFileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReadFileRequest {
+  string path = 1;
+  int64 offset = 2;
+  int64 length = 3;
+}
+
+message ReadFileResponse {
+  bool success = 1;
+  bytes data = 2;
+  int64 bytes_read = 3;
+}
+
+message WriteFileRequest {
+  string path = 1;
+  bytes data = 2;
+  int64 offset = 3;
+}
+
+message WriteFileResponse {
+  bool success = 1;
+  int64 bytes_written = 2;
+  string message = 3;
+}
+
+message DeleteFileRequest {
+  string path = 1;
+}
+
+message DeleteFileResponse {
+  bool success = 1;
+  string message = 2;
+}

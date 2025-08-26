@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package collective.proto;
+
+option go_package = "collective/pkg/protocol";
+
+service Node {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Unregister(UnregisterRequest) returns (UnregisterResponse);
+  rpc StoreChunk(StoreChunkRequest) returns (StoreChunkResponse);
+  rpc RetrieveChunk(RetrieveChunkRequest) returns (RetrieveChunkResponse);
+  rpc DeleteChunk(DeleteChunkRequest) returns (DeleteChunkResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc GetCapacity(GetCapacityRequest) returns (GetCapacityResponse);
+  rpc TransferChunk(TransferChunkRequest) returns (TransferChunkResponse);
+}
+
+message RegisterRequest {
+  string node_id = 1;
+  string member_id = 2;
+  string address = 3;
+  int64 total_capacity = 4;
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string coordinator_id = 2;
+}
+
+message UnregisterRequest {
+  string node_id = 1;
+}
+
+message UnregisterResponse {
+  bool success = 1;
+}
+
+message StoreChunkRequest {
+  string chunk_id = 1;
+  bytes data = 2;
+  string file_id = 3;
+  int32 index = 4;
+}
+
+message StoreChunkResponse {
+  bool success = 1;
+  string chunk_id = 2;
+}
+
+message RetrieveChunkRequest {
+  string chunk_id = 1;
+}
+
+message RetrieveChunkResponse {
+  bool success = 1;
+  bytes data = 2;
+}
+
+message DeleteChunkRequest {
+  string chunk_id = 1;
+}
+
+message DeleteChunkResponse {
+  bool success = 1;
+}
+
+message HealthCheckRequest {
+  int64 timestamp = 1;
+}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  int64 timestamp = 2;
+  int64 used_capacity = 3;
+  int64 total_capacity = 4;
+}
+
+message GetCapacityRequest {}
+
+message GetCapacityResponse {
+  int64 total_capacity = 1;
+  int64 used_capacity = 2;
+  int64 available_capacity = 3;
+}
+
+message TransferChunkRequest {
+  string chunk_id = 1;
+  string target_node = 2;
+}
+
+message TransferChunkResponse {
+  bool success = 1;
+}
