@@ -1,0 +1,11 @@
+{
+  "mode": "node",
+  "member_id": "bob",
+  "node": {
+    "node_id": "bob-node-02",
+    "address": ":7004",
+    "coordinator_address": "localhost:8002",
+    "storage_capacity": 1073741824,
+    "data_dir": "./data/bob-node-02"
+  }
+}
