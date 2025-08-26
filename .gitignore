@@ -35,6 +35,7 @@ bin/
 
 data/
 !data/configs/
+!data/configs/**
 
 # Collective-specific ignores
 *.log
