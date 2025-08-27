@@ -75,7 +75,7 @@ status-example.json
 !bin/
 
 # Build artifacts
-collective
+/collective
 collective.exe
 collective-*-*
 
