@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   bob-coordinator:
-    image: collective:latest
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: bob-coordinator
     hostname: bob-coordinator
     environment:
@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
 
   bob-node-01:
-    image: collective:latest
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: bob-node-01
     environment:
       - COLLECTIVE_MODE=node
@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   bob-node-02:
-    image: collective:latest
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: bob-node-02
     environment:
       - COLLECTIVE_MODE=node

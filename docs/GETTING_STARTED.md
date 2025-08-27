@@ -29,18 +29,20 @@ make build
 The fastest way to get started is using Docker Compose with our three-member test collective:
 
 ```bash
-# Build and start the test collective
-docker-compose up -d --build
+# Start the test collective using pre-built images
+docker compose -f examples/three-member/docker-compose.yml up -d
 
 # Check status of the collective
 ./bin/collective status --coordinator alice:8001
 
 # View logs
-docker-compose logs -f
+docker compose -f examples/three-member/docker-compose.yml logs -f
 
 # Stop all services
-docker-compose down
+docker compose -f examples/three-member/docker-compose.yml down
 ```
+
+The Docker images are available at `ghcr.io/colegreenlee/collective:latest`
 
 ## First-Time Client Setup
 

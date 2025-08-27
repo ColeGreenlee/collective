@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   alice-coordinator:
-    image: collective:latest
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: alice-coordinator
     hostname: alice-coordinator
     environment:
@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
 
   alice-node-01:
-    image: collective:latest
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: alice-node-01
     environment:
       - COLLECTIVE_MODE=node
@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   alice-node-02:
-    image: collective:latest
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: alice-node-02
     environment:
       - COLLECTIVE_MODE=node

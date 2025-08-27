@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Alice's coordinator
   alice-coordinator:
-    build: ../.../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: alice-coordinator
     hostname: alice-coordinator
     environment:
@@ -27,7 +27,7 @@ services:
 
   # Bob's coordinator
   bob-coordinator:
-    build: ../.../..
+    image: ghcr.io/colegreenlee/collective:latest./..
     container_name: bob-coordinator
     hostname: bob-coordinator
     environment:
@@ -51,7 +51,7 @@ services:
 
   # Carol's coordinator
   carol-coordinator:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: carol-coordinator
     hostname: carol-coordinator
     environment:
@@ -75,7 +75,7 @@ services:
 
   # Alice's nodes
   alice-node-01:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: alice-node-01
     hostname: alice-node-01
     environment:
@@ -95,7 +95,7 @@ services:
       - collective-net
 
   alice-node-02:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: alice-node-02
     hostname: alice-node-02
     environment:
@@ -115,7 +115,7 @@ services:
       - collective-net
 
   alice-node-03:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: alice-node-03
     hostname: alice-node-03
     environment:
@@ -136,7 +136,7 @@ services:
 
   # Bob's nodes
   bob-node-01:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: bob-node-01
     hostname: bob-node-01
     environment:
@@ -156,7 +156,7 @@ services:
       - collective-net
 
   bob-node-02:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: bob-node-02
     hostname: bob-node-02
     environment:
@@ -176,7 +176,7 @@ services:
       - collective-net
 
   bob-node-03:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: bob-node-03
     hostname: bob-node-03
     environment:
@@ -197,7 +197,7 @@ services:
 
   # Carol's nodes
   carol-node-01:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: carol-node-01
     hostname: carol-node-01
     environment:
@@ -217,7 +217,7 @@ services:
       - collective-net
 
   carol-node-02:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: carol-node-02
     hostname: carol-node-02
     environment:
@@ -237,7 +237,7 @@ services:
       - collective-net
 
   carol-node-03:
-    build: ../..
+    image: ghcr.io/colegreenlee/collective:latest
     container_name: carol-node-03
     hostname: carol-node-03
     environment:

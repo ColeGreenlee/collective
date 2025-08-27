@@ -14,8 +14,11 @@ A distributed storage collective that enables small groups to pool their storage
 ## Quick Start
 
 ```bash
-# Using Docker Compose (recommended)
-docker-compose up -d --build
+# Using Docker (recommended)
+docker run -d -p 8001:8001 ghcr.io/colegreenlee/collective:latest coordinator --member-id alice
+
+# Using Docker Compose
+docker compose -f examples/three-member/docker-compose.yml up -d
 ./bin/collective status --coordinator localhost:8001
 
 # Or build from source
