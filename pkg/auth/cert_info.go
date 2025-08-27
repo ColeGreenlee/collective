@@ -19,17 +19,17 @@ type CertificateInfo struct {
 	DNSNames     []string
 	KeyUsage     string
 	ExtKeyUsage  []string
-	
+
 	// Custom extensions
-	MemberID    string
-	ComponentID string
+	MemberID      string
+	ComponentID   string
 	ComponentType string
-	
+
 	// Status
-	IsValid     bool
-	IsExpired   bool
-	ExpiresIn   time.Duration
-	ErrorMsg    string
+	IsValid   bool
+	IsExpired bool
+	ExpiresIn time.Duration
+	ErrorMsg  string
 }
 
 // LoadCertificateInfo loads and parses certificate information from a file
@@ -78,7 +78,7 @@ func LoadCertificateInfo(certPath string) (*CertificateInfo, error) {
 
 	// Parse key usage
 	info.KeyUsage = parseKeyUsage(cert.KeyUsage)
-	
+
 	// Parse extended key usage
 	for _, ext := range cert.ExtKeyUsage {
 		info.ExtKeyUsage = append(info.ExtKeyUsage, parseExtKeyUsage(ext))
@@ -87,7 +87,7 @@ func LoadCertificateInfo(certPath string) (*CertificateInfo, error) {
 	// Extract custom extensions
 	info.MemberID = extractFromSubject(cert.Subject, "O")
 	info.ComponentID = extractFromSubject(cert.Subject, "CN")
-	
+
 	// Determine component type from CN
 	if cert.IsCA {
 		info.ComponentType = "CA"
@@ -179,7 +179,7 @@ func CheckCertificateExpiry(certPath string, warnDays int) (status string, daysL
 // parseKeyUsage converts key usage flags to readable string
 func parseKeyUsage(usage x509.KeyUsage) string {
 	var usages []string
-	
+
 	if usage&x509.KeyUsageDigitalSignature != 0 {
 		usages = append(usages, "DigitalSignature")
 	}
@@ -201,11 +201,11 @@ func parseKeyUsage(usage x509.KeyUsage) string {
 	if usage&x509.KeyUsageCRLSign != 0 {
 		usages = append(usages, "CRLSign")
 	}
-	
+
 	if len(usages) == 0 {
 		return "None"
 	}
-	
+
 	result := ""
 	for i, u := range usages {
 		if i > 0 {

@@ -19,12 +19,12 @@ type Member struct {
 }
 
 type StorageNode struct {
-	ID            NodeID
-	MemberID      MemberID
-	Address       string
-	TotalCapacity int64
-	UsedCapacity  int64
-	IsHealthy     bool
+	ID              NodeID
+	MemberID        MemberID
+	Address         string
+	TotalCapacity   int64
+	UsedCapacity    int64
+	IsHealthy       bool
 	LastHealthCheck time.Time
 }
 

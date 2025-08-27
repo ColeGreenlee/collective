@@ -11,28 +11,28 @@ import (
 
 // ClientConfig represents the client-side configuration for collective CLI
 type ClientConfig struct {
-	CurrentContext string           `json:"current_context"`
-	Contexts       []Context        `json:"contexts"`
-	Defaults       DefaultSettings  `json:"defaults"`
+	CurrentContext string          `json:"current_context"`
+	Contexts       []Context       `json:"contexts"`
+	Defaults       DefaultSettings `json:"defaults"`
 }
 
 // Context represents a connection context to a collective
 type Context struct {
-	Name        string      `json:"name"`
-	Description string      `json:"description,omitempty"`
-	Coordinator string      `json:"coordinator"`
-	MemberID    string      `json:"member_id"`
+	Name        string       `json:"name"`
+	Description string       `json:"description,omitempty"`
+	Coordinator string       `json:"coordinator"`
+	MemberID    string       `json:"member_id"`
 	Auth        AuthSettings `json:"auth"`
 }
 
 // AuthSettings represents authentication settings for a context
 type AuthSettings struct {
-	Type       string `json:"type"` // "certificate" or "token"
-	CAPath     string `json:"ca_cert,omitempty"`
-	CertPath   string `json:"client_cert,omitempty"`
-	KeyPath    string `json:"client_key,omitempty"`
-	Token      string `json:"token,omitempty"`
-	Insecure   bool   `json:"insecure,omitempty"`
+	Type     string `json:"type"` // "certificate" or "token"
+	CAPath   string `json:"ca_cert,omitempty"`
+	CertPath string `json:"client_cert,omitempty"`
+	KeyPath  string `json:"client_key,omitempty"`
+	Token    string `json:"token,omitempty"`
+	Insecure bool   `json:"insecure,omitempty"`
 }
 
 // DefaultSettings represents default settings for the client
@@ -48,12 +48,12 @@ func GetConfigDir() string {
 	if dir := os.Getenv("COLLECTIVE_CONFIG_DIR"); dir != "" {
 		return dir
 	}
-	
+
 	// Use XDG_CONFIG_HOME if set
 	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
 		return filepath.Join(xdgConfig, "collective")
 	}
-	
+
 	// Default to ~/.collective
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -70,7 +70,7 @@ func GetConfigPath() string {
 // LoadClientConfig loads the client configuration from file
 func LoadClientConfig() (*ClientConfig, error) {
 	configPath := GetConfigPath()
-	
+
 	// Check if config exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		// Return empty config if doesn't exist
@@ -82,24 +82,24 @@ func LoadClientConfig() (*ClientConfig, error) {
 			},
 		}, nil
 	}
-	
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	
+
 	var config ClientConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
-	
+
 	// Expand paths
 	for i := range config.Contexts {
 		config.Contexts[i].Auth.CAPath = expandPath(config.Contexts[i].Auth.CAPath)
 		config.Contexts[i].Auth.CertPath = expandPath(config.Contexts[i].Auth.CertPath)
 		config.Contexts[i].Auth.KeyPath = expandPath(config.Contexts[i].Auth.KeyPath)
 	}
-	
+
 	return &config, nil
 }
 
@@ -107,23 +107,23 @@ func LoadClientConfig() (*ClientConfig, error) {
 func (c *ClientConfig) Save() error {
 	configDir := GetConfigDir()
 	configPath := GetConfigPath()
-	
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	
+
 	// Marshal config to JSON
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	
+
 	// Write to file with restricted permissions
 	if err := os.WriteFile(configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -154,7 +154,7 @@ func (c *ClientConfig) AddContext(ctx Context) error {
 	if ctx.Coordinator == "" {
 		return fmt.Errorf("coordinator address is required")
 	}
-	
+
 	// Check if context exists
 	for i, existing := range c.Contexts {
 		if existing.Name == ctx.Name {
@@ -163,15 +163,15 @@ func (c *ClientConfig) AddContext(ctx Context) error {
 			return c.Save()
 		}
 	}
-	
+
 	// Add new context
 	c.Contexts = append(c.Contexts, ctx)
-	
+
 	// Set as current if it's the first context
 	if c.CurrentContext == "" {
 		c.CurrentContext = ctx.Name
 	}
-	
+
 	return c.Save()
 }
 
@@ -181,7 +181,7 @@ func (c *ClientConfig) RemoveContext(name string) error {
 		if ctx.Name == name {
 			// Remove from slice
 			c.Contexts = append(c.Contexts[:i], c.Contexts[i+1:]...)
-			
+
 			// Update current context if needed
 			if c.CurrentContext == name {
 				c.CurrentContext = ""
@@ -189,7 +189,7 @@ func (c *ClientConfig) RemoveContext(name string) error {
 					c.CurrentContext = c.Contexts[0].Name
 				}
 			}
-			
+
 			return c.Save()
 		}
 	}
@@ -202,7 +202,7 @@ func (c *ClientConfig) SetCurrentContext(name string) error {
 	if _, err := c.GetContext(name); err != nil {
 		return err
 	}
-	
+
 	c.CurrentContext = name
 	return c.Save()
 }
@@ -217,7 +217,7 @@ func expandPath(path string) string {
 	if path == "" {
 		return path
 	}
-	
+
 	// Expand ~
 	if strings.HasPrefix(path, "~/") {
 		home, err := os.UserHomeDir()
@@ -225,7 +225,7 @@ func expandPath(path string) string {
 			path = filepath.Join(home, path[2:])
 		}
 	}
-	
+
 	// Expand environment variables
 	return os.ExpandEnv(path)
 }
@@ -244,17 +244,17 @@ type ConnectionConfig struct {
 func (c *ClientConfig) GetConnectionConfig(contextOverride string) (*ConnectionConfig, error) {
 	var ctx *Context
 	var err error
-	
+
 	if contextOverride != "" {
 		ctx, err = c.GetContext(contextOverride)
 	} else {
 		ctx, err = c.GetCurrentContext()
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Parse timeout
 	timeout := 30 * time.Second
 	if c.Defaults.Timeout != "" {
@@ -262,7 +262,7 @@ func (c *ClientConfig) GetConnectionConfig(contextOverride string) (*ConnectionC
 			timeout = t
 		}
 	}
-	
+
 	return &ConnectionConfig{
 		Coordinator: ctx.Coordinator,
 		CAPath:      ctx.Auth.CAPath,
@@ -279,18 +279,18 @@ func InitializeContext(name, coordinator, memberID, caPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
-	
+
 	// Create certificate directory
 	certDir := GetCertificateDir(name)
 	if err := os.MkdirAll(certDir, 0700); err != nil {
 		return fmt.Errorf("failed to create certificate directory: %w", err)
 	}
-	
+
 	// Set up paths
 	caCertPath := filepath.Join(certDir, "ca.crt")
 	clientCertPath := filepath.Join(certDir, "client.crt")
 	clientKeyPath := filepath.Join(certDir, "client.key")
-	
+
 	// Copy CA certificate if provided
 	if caPath != "" {
 		caData, err := os.ReadFile(expandPath(caPath))
@@ -301,7 +301,7 @@ func InitializeContext(name, coordinator, memberID, caPath string) error {
 			return fmt.Errorf("failed to write CA certificate: %w", err)
 		}
 	}
-	
+
 	// Create context
 	ctx := Context{
 		Name:        name,
@@ -314,16 +314,16 @@ func InitializeContext(name, coordinator, memberID, caPath string) error {
 			KeyPath:  clientKeyPath,
 		},
 	}
-	
+
 	// Add context to config
 	if err := config.AddContext(ctx); err != nil {
 		return fmt.Errorf("failed to add context: %w", err)
 	}
-	
+
 	fmt.Printf("✓ Context %q created successfully\n", name)
 	fmt.Printf("  Coordinator: %s\n", coordinator)
 	fmt.Printf("  Member ID: %s\n", memberID)
 	fmt.Printf("  Certificates: %s\n", certDir)
-	
+
 	return nil
 }

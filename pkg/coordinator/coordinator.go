@@ -22,50 +22,50 @@ import (
 
 type Coordinator struct {
 	protocol.UnimplementedCoordinatorServer
-	
-	memberID types.MemberID
-	address  string
-	logger   *zap.Logger
-	config   *config.CoordinatorConfig
+
+	memberID   types.MemberID
+	address    string
+	logger     *zap.Logger
+	config     *config.CoordinatorConfig
 	authConfig *auth.AuthConfig
-	
+
 	// Peer management
 	peers     map[types.MemberID]*Peer
 	peerMutex sync.RWMutex
-	
+
 	// Node management
 	nodes     map[types.NodeID]*types.StorageNode
 	nodeMutex sync.RWMutex
-	
+
 	// File metadata
 	files     map[types.FileID]*types.File
 	fileMutex sync.RWMutex
-	
+
 	// Directory tree metadata
 	directories    map[string]*types.Directory
 	fileEntries    map[string]*types.FileEntry
 	directoryMutex sync.RWMutex
-	
+
 	// Per-file locks for concurrent write protection
 	fileLocks     map[string]*sync.RWMutex
 	fileLockMutex sync.Mutex
-	
+
 	// Performance optimization flags
 	useOptimizedStreaming bool
-	
+
 	// Chunk management
-	chunkManager      *storage.ChunkManager
-	chunkAllocations  map[types.ChunkID][]types.NodeID  // Which nodes have which chunks
-	fileChunks        map[string][]types.ChunkID        // File path to chunk IDs
-	chunkMutex        sync.RWMutex
-	
+	chunkManager     *storage.ChunkManager
+	chunkAllocations map[types.ChunkID][]types.NodeID // Which nodes have which chunks
+	fileChunks       map[string][]types.ChunkID       // File path to chunk IDs
+	chunkMutex       sync.RWMutex
+
 	// Write coalescing for small writes
-	writeBuffers      map[string]*WriteBuffer
-	writeBufferMutex  sync.RWMutex
-	
+	writeBuffers     map[string]*WriteBuffer
+	writeBufferMutex sync.RWMutex
+
 	server   *grpc.Server
 	listener net.Listener
-	
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -79,7 +79,7 @@ type WriteBuffer struct {
 }
 
 const (
-	WriteBufferFlushSize    = 256 * 1024      // Flush after 256KB
+	WriteBufferFlushSize    = 256 * 1024             // Flush after 256KB
 	WriteBufferFlushTimeout = 100 * time.Millisecond // Flush after 100ms of inactivity
 )
 
@@ -98,26 +98,26 @@ func New(cfg *config.CoordinatorConfig, memberID string, logger *zap.Logger) *Co
 
 func NewWithAuth(cfg *config.CoordinatorConfig, memberID string, logger *zap.Logger, authConfig *auth.AuthConfig) *Coordinator {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &Coordinator{
-		memberID: types.MemberID(memberID),
-		address:  cfg.Address,
-		logger:   logger,
-		config:   cfg,
-		authConfig: authConfig,
-		peers:       make(map[types.MemberID]*Peer),
-		nodes:       make(map[types.NodeID]*types.StorageNode),
-		files:       make(map[types.FileID]*types.File),
-		directories: make(map[string]*types.Directory),
-		fileEntries: make(map[string]*types.FileEntry),
-		fileLocks:        make(map[string]*sync.RWMutex),
-		chunkManager:     storage.NewChunkManager(),
-		chunkAllocations: make(map[types.ChunkID][]types.NodeID),
-		fileChunks:       make(map[string][]types.ChunkID),
-		writeBuffers:     make(map[string]*WriteBuffer),
+		memberID:              types.MemberID(memberID),
+		address:               cfg.Address,
+		logger:                logger,
+		config:                cfg,
+		authConfig:            authConfig,
+		peers:                 make(map[types.MemberID]*Peer),
+		nodes:                 make(map[types.NodeID]*types.StorageNode),
+		files:                 make(map[types.FileID]*types.File),
+		directories:           make(map[string]*types.Directory),
+		fileEntries:           make(map[string]*types.FileEntry),
+		fileLocks:             make(map[string]*sync.RWMutex),
+		chunkManager:          storage.NewChunkManager(),
+		chunkAllocations:      make(map[types.ChunkID][]types.NodeID),
+		fileChunks:            make(map[string][]types.ChunkID),
+		writeBuffers:          make(map[string]*WriteBuffer),
 		useOptimizedStreaming: true, // Enable optimized streaming by default
-		ctx:      ctx,
-		cancel:   cancel,
+		ctx:                   ctx,
+		cancel:                cancel,
 	}
 }
 
@@ -126,30 +126,30 @@ func (c *Coordinator) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", c.address, err)
 	}
-	
+
 	c.listener = listener
-	
+
 	// Create gRPC server with authentication if configured
 	var serverOpts []grpc.ServerOption
-	
+
 	if c.authConfig != nil && c.authConfig.Enabled {
 		// Create TLS configuration
 		tlsBuilder, err := auth.NewTLSConfigBuilder(c.authConfig)
 		if err != nil {
 			return fmt.Errorf("failed to create TLS config: %w", err)
 		}
-		
+
 		tlsConfig, err := tlsBuilder.BuildServerConfig()
 		if err != nil {
 			return fmt.Errorf("failed to build server TLS config: %w", err)
 		}
-		
+
 		if tlsConfig != nil {
 			creds := credentials.NewTLS(tlsConfig)
 			serverOpts = append(serverOpts, grpc.Creds(creds))
 			c.logger.Info("TLS enabled for coordinator", zap.String("member_id", string(c.memberID)))
 		}
-		
+
 		// Add authentication interceptors if required
 		if c.authConfig.RequireClientAuth {
 			// Create authenticator and interceptor
@@ -161,26 +161,26 @@ func (c *Coordinator) Start() error {
 			c.logger.Info("Client authentication required", zap.String("member_id", string(c.memberID)))
 		}
 	}
-	
+
 	c.server = grpc.NewServer(serverOpts...)
 	protocol.RegisterCoordinatorServer(c.server, c)
-	
+
 	c.logger.Info("Coordinator starting", zap.String("address", c.address), zap.String("member_id", string(c.memberID)))
-	
+
 	// Initialize root directory
 	c.initializeRootDirectory()
-	
+
 	// Start background tasks
 	go c.heartbeatLoop()
 	go c.syncLoop()
 	go c.nodeHealthLoop()
-	
+
 	return c.server.Serve(listener)
 }
 
 func (c *Coordinator) Stop() {
 	c.cancel()
-	
+
 	// Disconnect from all peers
 	c.peerMutex.Lock()
 	for _, peer := range c.peers {
@@ -189,7 +189,7 @@ func (c *Coordinator) Stop() {
 		}
 	}
 	c.peerMutex.Unlock()
-	
+
 	if c.server != nil {
 		c.server.GracefulStop()
 	}
@@ -204,46 +204,46 @@ func (c *Coordinator) ConnectToPeer(memberID, address string) error {
 		return nil
 	}
 	c.peerMutex.RUnlock()
-	
+
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("failed to connect to peer %s at %s: %w", memberID, address, err)
 	}
-	
+
 	client := protocol.NewCoordinatorClient(conn)
-	
+
 	// Get our node list to share
 	c.nodeMutex.RLock()
 	nodeInfos := make([]*protocol.NodeInfo, 0, len(c.nodes))
 	for _, node := range c.nodes {
 		nodeInfos = append(nodeInfos, &protocol.NodeInfo{
-			NodeId:       string(node.ID),
-			MemberId:     string(node.MemberID),
-			Address:      node.Address,
+			NodeId:        string(node.ID),
+			MemberId:      string(node.MemberID),
+			Address:       node.Address,
 			TotalCapacity: node.TotalCapacity,
 			UsedCapacity:  node.UsedCapacity,
-			IsHealthy:    node.IsHealthy,
+			IsHealthy:     node.IsHealthy,
 		})
 	}
 	c.nodeMutex.RUnlock()
-	
+
 	// Attempt to connect
 	resp, err := client.PeerConnect(c.ctx, &protocol.PeerConnectRequest{
 		MemberId: string(c.memberID),
 		Address:  c.address,
 		Nodes:    nodeInfos,
 	})
-	
+
 	if err != nil {
 		conn.Close()
 		return fmt.Errorf("peer connect request failed: %w", err)
 	}
-	
+
 	if !resp.Accepted {
 		conn.Close()
 		return fmt.Errorf("peer %s rejected connection", memberID)
 	}
-	
+
 	// Store peer connection
 	peer := &Peer{
 		MemberID:   types.MemberID(memberID),
@@ -253,31 +253,31 @@ func (c *Coordinator) ConnectToPeer(memberID, address string) error {
 		LastSeen:   time.Now(),
 		IsHealthy:  true,
 	}
-	
+
 	c.peerMutex.Lock()
 	c.peers[peer.MemberID] = peer
 	c.peerMutex.Unlock()
-	
+
 	// Store their nodes
 	for _, nodeInfo := range resp.Nodes {
 		c.addRemoteNode(nodeInfo)
 	}
-	
+
 	c.logger.Info("Connected to peer", zap.String("member_id", memberID), zap.String("address", address))
 	return nil
 }
 
 func (c *Coordinator) PeerConnect(ctx context.Context, req *protocol.PeerConnectRequest) (*protocol.PeerConnectResponse, error) {
 	c.logger.Info("Peer connection request", zap.String("from", req.MemberId))
-	
+
 	// Store peer info
 	memberID := types.MemberID(req.MemberId)
-	
+
 	// Check if we already have this peer
 	c.peerMutex.RLock()
 	existingPeer, alreadyConnected := c.peers[memberID]
 	c.peerMutex.RUnlock()
-	
+
 	if alreadyConnected {
 		c.logger.Debug("Already connected to peer", zap.String("peer", req.MemberId))
 		// Update the address if it changed
@@ -289,7 +289,7 @@ func (c *Coordinator) PeerConnect(ctx context.Context, req *protocol.PeerConnect
 		if err != nil {
 			return &protocol.PeerConnectResponse{Accepted: false}, nil
 		}
-		
+
 		peer := &Peer{
 			MemberID:   memberID,
 			Address:    req.Address,
@@ -298,26 +298,26 @@ func (c *Coordinator) PeerConnect(ctx context.Context, req *protocol.PeerConnect
 			LastSeen:   time.Now(),
 			IsHealthy:  true,
 		}
-		
+
 		c.peerMutex.Lock()
 		c.peers[memberID] = peer
 		c.peerMutex.Unlock()
 	}
-	
+
 	// Store their nodes
 	for _, nodeInfo := range req.Nodes {
 		c.addRemoteNode(nodeInfo)
 	}
-	
+
 	// If bidirectional peering is enabled and we don't already have a reverse connection,
 	// establish one back to the requesting peer
 	if c.config.BidirectionalPeering && !alreadyConnected {
 		go func() {
 			time.Sleep(1 * time.Second) // Small delay to let the other side complete
-			c.logger.Info("Establishing bidirectional connection back to peer", 
+			c.logger.Info("Establishing bidirectional connection back to peer",
 				zap.String("peer", req.MemberId),
 				zap.String("address", req.Address))
-			
+
 			if err := c.ConnectToPeer(string(memberID), req.Address); err != nil {
 				c.logger.Warn("Failed to establish bidirectional connection",
 					zap.String("peer", req.MemberId),
@@ -325,24 +325,24 @@ func (c *Coordinator) PeerConnect(ctx context.Context, req *protocol.PeerConnect
 			}
 		}()
 	}
-	
+
 	// Prepare our node list
 	c.nodeMutex.RLock()
 	nodeInfos := make([]*protocol.NodeInfo, 0, len(c.nodes))
 	for _, node := range c.nodes {
 		if node.MemberID == c.memberID { // Only share our own nodes
 			nodeInfos = append(nodeInfos, &protocol.NodeInfo{
-				NodeId:       string(node.ID),
-				MemberId:     string(node.MemberID),
-				Address:      node.Address,
+				NodeId:        string(node.ID),
+				MemberId:      string(node.MemberID),
+				Address:       node.Address,
 				TotalCapacity: node.TotalCapacity,
 				UsedCapacity:  node.UsedCapacity,
-				IsHealthy:    node.IsHealthy,
+				IsHealthy:     node.IsHealthy,
 			})
 		}
 	}
 	c.nodeMutex.RUnlock()
-	
+
 	return &protocol.PeerConnectResponse{
 		Accepted: true,
 		MemberId: string(c.memberID),
@@ -352,7 +352,7 @@ func (c *Coordinator) PeerConnect(ctx context.Context, req *protocol.PeerConnect
 
 func (c *Coordinator) PeerDisconnect(ctx context.Context, req *protocol.PeerDisconnectRequest) (*protocol.PeerDisconnectResponse, error) {
 	memberID := types.MemberID(req.MemberId)
-	
+
 	c.peerMutex.Lock()
 	if peer, exists := c.peers[memberID]; exists {
 		if peer.Connection != nil {
@@ -361,14 +361,14 @@ func (c *Coordinator) PeerDisconnect(ctx context.Context, req *protocol.PeerDisc
 		delete(c.peers, memberID)
 	}
 	c.peerMutex.Unlock()
-	
+
 	c.logger.Info("Peer disconnected", zap.String("member_id", req.MemberId))
 	return &protocol.PeerDisconnectResponse{Success: true}, nil
 }
 
 func (c *Coordinator) Heartbeat(ctx context.Context, req *protocol.HeartbeatRequest) (*protocol.HeartbeatResponse, error) {
 	memberID := types.MemberID(req.MemberId)
-	
+
 	// Handle peer heartbeat
 	c.peerMutex.Lock()
 	if peer, exists := c.peers[memberID]; exists {
@@ -376,24 +376,24 @@ func (c *Coordinator) Heartbeat(ctx context.Context, req *protocol.HeartbeatRequ
 		peer.IsHealthy = true
 	}
 	c.peerMutex.Unlock()
-	
+
 	// Handle node heartbeat if NodeInfo is provided
 	if req.NodeInfo != nil {
 		nodeID := types.NodeID(req.NodeInfo.NodeId)
-		
+
 		c.nodeMutex.Lock()
-		
+
 		if node, exists := c.nodes[nodeID]; exists {
 			// Update existing node's health status
 			node.UsedCapacity = req.NodeInfo.UsedCapacity
 			node.IsHealthy = req.NodeInfo.IsHealthy
 			node.LastHealthCheck = time.Now()
 			c.nodeMutex.Unlock()
-			
+
 			c.logger.Debug("Node heartbeat received",
 				zap.String("node_id", string(nodeID)),
 				zap.Int64("used_capacity", req.NodeInfo.UsedCapacity))
-			
+
 			return &protocol.HeartbeatResponse{
 				MemberId:  string(c.memberID),
 				Timestamp: time.Now().Unix(),
@@ -401,32 +401,32 @@ func (c *Coordinator) Heartbeat(ctx context.Context, req *protocol.HeartbeatRequ
 			}, nil
 		} else {
 			c.nodeMutex.Unlock()
-			
+
 			// Node not found - it needs to re-register
 			c.logger.Warn("Heartbeat from unregistered node",
 				zap.String("node_id", string(nodeID)))
-			
+
 			// Auto-register the node if it's from our member
 			if req.NodeInfo.MemberId == string(c.memberID) {
 				c.registerNodeInternal(req.NodeInfo.NodeId, req.NodeInfo.Address, req.NodeInfo.TotalCapacity)
 				c.logger.Info("Auto-registered node from heartbeat",
 					zap.String("node_id", string(nodeID)))
-					
+
 				return &protocol.HeartbeatResponse{
 					MemberId:  string(c.memberID),
 					Timestamp: time.Now().Unix(),
 					Success:   true,
 				}, nil
 			}
-			
+
 			return &protocol.HeartbeatResponse{
 				MemberId:  string(c.memberID),
 				Timestamp: time.Now().Unix(),
-				Success:   false,  // Node needs to register
+				Success:   false, // Node needs to register
 			}, nil
 		}
 	}
-	
+
 	return &protocol.HeartbeatResponse{
 		MemberId:  string(c.memberID),
 		Timestamp: time.Now().Unix(),
@@ -444,7 +444,7 @@ func (c *Coordinator) addRemoteNode(nodeInfo *protocol.NodeInfo) {
 		IsHealthy:       nodeInfo.IsHealthy,
 		LastHealthCheck: time.Now(),
 	}
-	
+
 	c.nodeMutex.Lock()
 	c.nodes[node.ID] = node
 	c.nodeMutex.Unlock()
@@ -453,7 +453,7 @@ func (c *Coordinator) addRemoteNode(nodeInfo *protocol.NodeInfo) {
 func (c *Coordinator) heartbeatLoop() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -471,17 +471,17 @@ func (c *Coordinator) sendHeartbeats() {
 		peers = append(peers, peer)
 	}
 	c.peerMutex.RUnlock()
-	
+
 	for _, peer := range peers {
 		go func(p *Peer) {
 			ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
 			defer cancel()
-			
+
 			_, err := p.Client.Heartbeat(ctx, &protocol.HeartbeatRequest{
 				MemberId:  string(c.memberID),
 				Timestamp: time.Now().Unix(),
 			})
-			
+
 			c.peerMutex.Lock()
 			if err != nil {
 				p.IsHealthy = false
@@ -497,13 +497,13 @@ func (c *Coordinator) sendHeartbeats() {
 
 // StoreFile handles file storage across the collective
 func (c *Coordinator) StoreFile(ctx context.Context, req *protocol.StoreFileRequest) (*protocol.StoreFileResponse, error) {
-	c.logger.Info("Storing file", 
+	c.logger.Info("Storing file",
 		zap.String("file_id", req.FileId),
 		zap.Int("size", len(req.Data)))
 
 	// Create chunk manager
 	cm := storage.NewChunkManager()
-	
+
 	// Split file into chunks
 	fileID := types.FileID(req.FileId)
 	chunks, err := cm.SplitIntoChunks(req.Data, fileID)
@@ -538,7 +538,7 @@ func (c *Coordinator) StoreFile(ctx context.Context, req *protocol.StoreFileRequ
 	// Store chunks on allocated nodes
 	var locations []*protocol.ChunkLocation
 	successCount := 0
-	
+
 	for _, chunk := range chunks {
 		nodeIDs := allocations[chunk.ID]
 		for _, nodeID := range nodeIDs {
@@ -568,7 +568,7 @@ func (c *Coordinator) StoreFile(ctx context.Context, req *protocol.StoreFileRequ
 				Size:    chunk.Size,
 			})
 			successCount++
-			
+
 			c.logger.Debug("Chunk stored",
 				zap.String("chunk_id", string(chunk.ID)),
 				zap.String("node_id", string(nodeID)))
@@ -587,7 +587,7 @@ func (c *Coordinator) StoreFile(ctx context.Context, req *protocol.StoreFileRequ
 		CreatedAt: time.Now(),
 		OwnerID:   c.memberID,
 	}
-	
+
 	for _, loc := range locations {
 		file.Chunks = append(file.Chunks, types.ChunkLocation{
 			ChunkID: types.ChunkID(loc.ChunkId),
@@ -617,7 +617,7 @@ func (c *Coordinator) RetrieveFile(ctx context.Context, req *protocol.RetrieveFi
 	c.logger.Info("Retrieving file", zap.String("file_id", req.FileId))
 
 	fileID := types.FileID(req.FileId)
-	
+
 	// Get file metadata
 	c.fileMutex.RLock()
 	file, exists := c.files[fileID]
@@ -691,15 +691,14 @@ func (c *Coordinator) RetrieveFile(ctx context.Context, req *protocol.RetrieveFi
 		Success: true,
 		Data:    data,
 		Metadata: &protocol.FileMetadata{
-			FileId:       string(file.ID),
-			Filename:     file.Name,
-			Size:         file.Size,
-			CreatedAt:    file.CreatedAt.Unix(),
+			FileId:        string(file.ID),
+			Filename:      file.Name,
+			Size:          file.Size,
+			CreatedAt:     file.CreatedAt.Unix(),
 			OwnerMemberId: string(file.OwnerID),
 		},
 	}, nil
 }
-
 
 func (c *Coordinator) ShareNodeList(ctx context.Context, req *protocol.ShareNodeListRequest) (*protocol.ShareNodeListResponse, error) {
 	for _, nodeInfo := range req.Nodes {
@@ -720,7 +719,7 @@ func (c *Coordinator) GetStatus(ctx context.Context, req *protocol.GetStatusRequ
 	remoteNodes := make([]*protocol.NodeInfo, 0)
 	totalCapacity := int64(0)
 	usedCapacity := int64(0)
-	
+
 	for _, node := range c.nodes {
 		nodeInfo := &protocol.NodeInfo{
 			NodeId:        string(node.ID),
@@ -730,7 +729,7 @@ func (c *Coordinator) GetStatus(ctx context.Context, req *protocol.GetStatusRequ
 			UsedCapacity:  node.UsedCapacity,
 			IsHealthy:     node.IsHealthy,
 		}
-		
+
 		if node.MemberID == c.memberID {
 			localNodes = append(localNodes, nodeInfo)
 			totalCapacity += node.TotalCapacity
@@ -740,7 +739,7 @@ func (c *Coordinator) GetStatus(ctx context.Context, req *protocol.GetStatusRequ
 		}
 	}
 	c.nodeMutex.RUnlock()
-	
+
 	// Sort nodes for consistent ordering
 	sort.Slice(localNodes, func(i, j int) bool {
 		return localNodes[i].NodeId < localNodes[j].NodeId
@@ -761,7 +760,7 @@ func (c *Coordinator) GetStatus(ctx context.Context, req *protocol.GetStatusRequ
 		})
 	}
 	c.peerMutex.RUnlock()
-	
+
 	// Sort peers for consistent ordering
 	sort.Slice(peerInfos, func(i, j int) bool {
 		return peerInfos[i].MemberId < peerInfos[j].MemberId
@@ -773,11 +772,11 @@ func (c *Coordinator) GetStatus(ctx context.Context, req *protocol.GetStatusRequ
 	c.fileMutex.RUnlock()
 
 	return &protocol.GetStatusResponse{
-		MemberId:            string(c.memberID),
-		LocalNodes:          localNodes,
-		RemoteNodes:         remoteNodes,
-		Peers:               peerInfos,
-		TotalFiles:          int32(fileCount),
+		MemberId:             string(c.memberID),
+		LocalNodes:           localNodes,
+		RemoteNodes:          remoteNodes,
+		Peers:                peerInfos,
+		TotalFiles:           int32(fileCount),
 		TotalStorageCapacity: totalCapacity,
 		UsedStorageCapacity:  usedCapacity,
 	}, nil
@@ -794,7 +793,7 @@ func (c *Coordinator) RegisterNode(ctx context.Context, req *protocol.RegisterNo
 	}
 
 	c.registerNodeInternal(req.NodeId, req.Address, req.TotalCapacity)
-	
+
 	return &protocol.RegisterNodeResponse{
 		Success: true,
 		Message: "node registered successfully",
@@ -876,14 +875,14 @@ func (c *Coordinator) shareNodeListWithPeers() {
 // SyncState handles state synchronization requests from peers
 func (c *Coordinator) SyncState(ctx context.Context, req *protocol.SyncStateRequest) (*protocol.SyncStateResponse, error) {
 	c.logger.Debug("Received state sync request", zap.String("from", req.MemberId))
-	
+
 	// Update our knowledge with the received state
 	for _, nodeInfo := range req.Nodes {
 		if types.MemberID(nodeInfo.MemberId) != c.memberID {
 			c.addRemoteNode(nodeInfo)
 		}
 	}
-	
+
 	// Collect all nodes we know about
 	c.nodeMutex.RLock()
 	allNodes := make([]*protocol.NodeInfo, 0, len(c.nodes))
@@ -898,12 +897,12 @@ func (c *Coordinator) SyncState(ctx context.Context, req *protocol.SyncStateRequ
 		})
 	}
 	c.nodeMutex.RUnlock()
-	
+
 	// Sort nodes for consistent ordering
 	sort.Slice(allNodes, func(i, j int) bool {
 		return allNodes[i].NodeId < allNodes[j].NodeId
 	})
-	
+
 	// Collect all peers we know about
 	c.peerMutex.RLock()
 	knownPeers := make([]*protocol.PeerInfo, 0, len(c.peers))
@@ -916,12 +915,12 @@ func (c *Coordinator) SyncState(ctx context.Context, req *protocol.SyncStateRequ
 		})
 	}
 	c.peerMutex.RUnlock()
-	
+
 	// Sort peers for consistent ordering
 	sort.Slice(knownPeers, func(i, j int) bool {
 		return knownPeers[i].MemberId < knownPeers[j].MemberId
 	})
-	
+
 	return &protocol.SyncStateResponse{
 		Success:    true,
 		Nodes:      allNodes,
@@ -933,7 +932,7 @@ func (c *Coordinator) SyncState(ctx context.Context, req *protocol.SyncStateRequ
 func (c *Coordinator) syncLoop() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -960,7 +959,7 @@ func (c *Coordinator) syncWithPeers() {
 		})
 	}
 	c.nodeMutex.RUnlock()
-	
+
 	// Get list of peers to sync with
 	c.peerMutex.RLock()
 	peers := make([]*Peer, 0, len(c.peers))
@@ -975,34 +974,34 @@ func (c *Coordinator) syncWithPeers() {
 		})
 	}
 	c.peerMutex.RUnlock()
-	
+
 	// Sync with each peer
 	for _, peer := range peers {
 		go func(p *Peer) {
 			ctx, cancel := context.WithTimeout(c.ctx, 5*time.Second)
 			defer cancel()
-			
+
 			resp, err := p.Client.SyncState(ctx, &protocol.SyncStateRequest{
 				MemberId:   string(c.memberID),
 				Timestamp:  time.Now().Unix(),
 				Nodes:      myNodes,
 				KnownPeers: myPeers,
 			})
-			
+
 			if err != nil {
 				c.logger.Warn("Failed to sync with peer",
 					zap.String("peer", string(p.MemberID)),
 					zap.Error(err))
 				return
 			}
-			
+
 			// Update our knowledge with the response
 			for _, nodeInfo := range resp.Nodes {
 				if types.MemberID(nodeInfo.MemberId) != c.memberID {
 					c.addRemoteNode(nodeInfo)
 				}
 			}
-			
+
 			// Consider adding new peers we didn't know about
 			for _, peerInfo := range resp.KnownPeers {
 				peerID := types.MemberID(peerInfo.MemberId)
@@ -1010,7 +1009,7 @@ func (c *Coordinator) syncWithPeers() {
 					c.peerMutex.RLock()
 					_, exists := c.peers[peerID]
 					c.peerMutex.RUnlock()
-					
+
 					if !exists && peerInfo.Address != "" {
 						c.logger.Info("Discovered new peer via sync",
 							zap.String("peer", peerInfo.MemberId),
@@ -1021,7 +1020,7 @@ func (c *Coordinator) syncWithPeers() {
 					}
 				}
 			}
-			
+
 			c.logger.Debug("Synced with peer",
 				zap.String("peer", string(p.MemberID)),
 				zap.Int("nodes_received", len(resp.Nodes)),
@@ -1033,7 +1032,7 @@ func (c *Coordinator) syncWithPeers() {
 func (c *Coordinator) nodeHealthLoop() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -1053,7 +1052,7 @@ func (c *Coordinator) checkNodeHealth() {
 		}
 	}
 	c.nodeMutex.RUnlock()
-	
+
 	for _, node := range nodes {
 		conn, err := grpc.Dial(node.Address, grpc.WithInsecure())
 		if err != nil {
@@ -1067,7 +1066,7 @@ func (c *Coordinator) checkNodeHealth() {
 			c.nodeMutex.Unlock()
 			continue
 		}
-		
+
 		client := protocol.NewNodeClient(conn)
 		ctx, cancel := context.WithTimeout(c.ctx, 5*time.Second)
 		resp, err := client.HealthCheck(ctx, &protocol.HealthCheckRequest{
@@ -1075,7 +1074,7 @@ func (c *Coordinator) checkNodeHealth() {
 		})
 		cancel()
 		conn.Close()
-		
+
 		c.nodeMutex.Lock()
 		if n, exists := c.nodes[node.ID]; exists {
 			if err != nil || !resp.Healthy {
@@ -1094,7 +1093,7 @@ func (c *Coordinator) checkNodeHealth() {
 func (c *Coordinator) initializeRootDirectory() {
 	c.directoryMutex.Lock()
 	defer c.directoryMutex.Unlock()
-	
+
 	if _, exists := c.directories["/"]; !exists {
 		c.directories["/"] = &types.Directory{
 			Path:     "/",
@@ -1109,4 +1108,3 @@ func (c *Coordinator) initializeRootDirectory() {
 }
 
 // Directory Operations
-

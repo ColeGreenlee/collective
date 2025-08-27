@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
-	
+
 	"collective/pkg/auth"
 )
 
@@ -11,15 +11,15 @@ type Mode string
 
 const (
 	ModeCoordinator Mode = "coordinator"
-	ModeNode       Mode = "node"
+	ModeNode        Mode = "node"
 )
 
 type Config struct {
-	Mode        Mode               `json:"mode"`
-	MemberID    string             `json:"member_id"`
-	Coordinator CoordinatorConfig  `json:"coordinator,omitempty"`
-	Node        NodeConfig         `json:"node,omitempty"`
-	Auth        *auth.AuthConfig   `json:"auth,omitempty"`
+	Mode        Mode              `json:"mode"`
+	MemberID    string            `json:"member_id"`
+	Coordinator CoordinatorConfig `json:"coordinator,omitempty"`
+	Node        NodeConfig        `json:"node,omitempty"`
+	Auth        *auth.AuthConfig  `json:"auth,omitempty"`
 }
 
 type CoordinatorConfig struct {
@@ -63,7 +63,7 @@ func LoadFromEnv() *Config {
 			Address: getEnv("COLLECTIVE_COORDINATOR_ADDRESS", ":8001"),
 			DataDir: getEnv("COLLECTIVE_DATA_DIR", "./data"),
 		}
-		
+
 		if peers := os.Getenv("COLLECTIVE_BOOTSTRAP_PEERS"); peers != "" {
 			// Parse comma-separated peers: alice:8001,bob:8002
 			// Implementation left for brevity
@@ -74,7 +74,7 @@ func LoadFromEnv() *Config {
 			Address:            getEnv("COLLECTIVE_NODE_ADDRESS", ":7001"),
 			CoordinatorAddress: getEnv("COLLECTIVE_COORDINATOR_ADDRESS", "localhost:8001"),
 			StorageCapacity:    1073741824, // 1GB default
-			DataDir:           getEnv("COLLECTIVE_DATA_DIR", "./data"),
+			DataDir:            getEnv("COLLECTIVE_DATA_DIR", "./data"),
 		}
 	}
 

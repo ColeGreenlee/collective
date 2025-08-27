@@ -11,7 +11,7 @@ func (c *Coordinator) WriteFileStream(stream protocol.Coordinator_WriteFileStrea
 		c.logger.Debug("Using optimized streaming for write")
 		return c.WriteFileStreamOptimized(stream)
 	}
-	
+
 	c.logger.Debug("Using standard streaming for write")
 	return c.WriteFileStreamStandard(stream)
 }
@@ -23,7 +23,7 @@ func (c *Coordinator) ReadFileStream(req *protocol.ReadFileStreamRequest, stream
 			zap.String("path", req.Path))
 		return c.ReadFileStreamOptimized(req, stream)
 	}
-	
+
 	c.logger.Debug("Using standard streaming for read",
 		zap.String("path", req.Path))
 	return c.ReadFileStreamStandard(req, stream)

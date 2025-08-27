@@ -58,7 +58,7 @@ Each member runs a coordinator that manages their storage nodes.`,
 		clientCmd(),
 		peerCmd(),
 		versionCmd(),
-		enhancedStatusCmd(),  // Use enhanced status command
+		enhancedStatusCmd(), // Use enhanced status command
 		mountCmd(),
 		mkdirCmd(),
 		lsCmd(),
@@ -110,7 +110,7 @@ func coordinatorCmd() *cobra.Command {
 						DataDir: dataDir,
 					},
 				}
-				
+
 				// Parse bootstrap peers
 				for _, peer := range bootstrapPeers {
 					// Format: memberID:address
@@ -137,7 +137,7 @@ func coordinatorCmd() *cobra.Command {
 			} else {
 				coord = coordinator.New(&cfg.Coordinator, cfg.MemberID, logger)
 			}
-			
+
 			// Connect to bootstrap peers with retry
 			for _, peer := range cfg.Coordinator.BootstrapPeers {
 				peerCopy := peer // Capture loop variable
@@ -145,26 +145,26 @@ func coordinatorCmd() *cobra.Command {
 					retryCount := 0
 					baseDelay := time.Second
 					maxDelay := time.Minute * 5
-					
+
 					for {
-						logger.Info("Attempting to connect to bootstrap peer", 
+						logger.Info("Attempting to connect to bootstrap peer",
 							zap.String("member_id", peerCopy.MemberID),
 							zap.String("address", peerCopy.Address),
 							zap.Int("attempt", retryCount+1))
-						
+
 						if err := coord.ConnectToPeer(peerCopy.MemberID, peerCopy.Address); err != nil {
 							retryCount++
 							delay := baseDelay * time.Duration(1<<uint(min(retryCount-1, 10)))
 							if delay > maxDelay {
 								delay = maxDelay
 							}
-							
-							logger.Warn("Failed to connect to bootstrap peer, will retry", 
+
+							logger.Warn("Failed to connect to bootstrap peer, will retry",
 								zap.String("member_id", peerCopy.MemberID),
 								zap.String("address", peerCopy.Address),
 								zap.Error(err),
 								zap.Duration("retry_in", delay))
-							
+
 							time.Sleep(delay)
 						} else {
 							logger.Info("Successfully connected to bootstrap peer",
@@ -404,7 +404,7 @@ func storeCmd() *cobra.Command {
 				const chunkSize = 1024 * 1024 // 1MB chunks
 				buffer := make([]byte, chunkSize)
 				bytesSent := int64(0)
-				
+
 				for {
 					n, err := file.Read(buffer)
 					if err == io.EOF {
@@ -419,14 +419,14 @@ func storeCmd() *cobra.Command {
 							ChunkData: buffer[:n],
 						},
 					}
-					
+
 					if err := stream.Send(chunk); err != nil {
 						return fmt.Errorf("failed to send chunk: %w", err)
 					}
-					
+
 					bytesSent += int64(n)
-					if bytesSent % (10 * 1024 * 1024) == 0 {
-						logger.Info("Upload progress", 
+					if bytesSent%(10*1024*1024) == 0 {
+						logger.Info("Upload progress",
 							zap.Int64("sent", bytesSent),
 							zap.Int64("total", fileInfo.Size()),
 							zap.Float64("percent", float64(bytesSent)/float64(fileInfo.Size())*100))
@@ -468,8 +468,8 @@ func storeCmd() *cobra.Command {
 
 				// Write file
 				writeResp, err := client.WriteFile(ctx, &protocol.WriteFileRequest{
-					Path: fileID,
-					Data: data,
+					Path:   fileID,
+					Data:   data,
 					Offset: 0,
 				})
 				if err != nil {
@@ -523,51 +523,51 @@ func retrieveCmd() *cobra.Command {
 
 			// Try streaming first for large files
 			stream, err := client.ReadFileStream(ctx, &protocol.ReadFileStreamRequest{
-				Path: fileID,
+				Path:   fileID,
 				Offset: 0,
 				Length: 0, // Get entire file
 			})
-			
+
 			if err != nil {
 				// Fallback to non-streaming for small files
 				resp, err := client.ReadFile(ctx, &protocol.ReadFileRequest{
-					Path: fileID,
+					Path:   fileID,
 					Offset: 0,
 					Length: 0,
 				})
-				
+
 				if err != nil {
 					return fmt.Errorf("failed to retrieve file: %w", err)
 				}
-				
+
 				if !resp.Success {
 					return fmt.Errorf("file not found")
 				}
-				
+
 				// Write to output file
 				if err := os.WriteFile(outputPath, resp.Data, 0644); err != nil {
 					return fmt.Errorf("failed to write output file: %w", err)
 				}
-				
+
 				logger.Info("File retrieved successfully",
 					zap.String("file_id", fileID),
 					zap.String("output", outputPath),
 					zap.Int64("size", resp.BytesRead))
-				
+
 				return nil
 			}
-			
+
 			// Handle streaming response
 			outputFile, err := os.Create(outputPath)
 			if err != nil {
 				return fmt.Errorf("failed to create output file: %w", err)
 			}
 			defer outputFile.Close()
-			
+
 			var totalBytes int64
 			var totalSize int64
 			headerReceived := false
-			
+
 			for {
 				resp, err := stream.Recv()
 				if err == io.EOF {
@@ -576,7 +576,7 @@ func retrieveCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to receive stream: %w", err)
 				}
-				
+
 				switch data := resp.Data.(type) {
 				case *protocol.ReadFileStreamResponse_Header:
 					headerReceived = true
@@ -584,7 +584,7 @@ func retrieveCmd() *cobra.Command {
 					logger.Info("Starting streaming download",
 						zap.Int64("total_size", totalSize),
 						zap.Int32("chunk_count", data.Header.ChunkCount))
-						
+
 				case *protocol.ReadFileStreamResponse_ChunkData:
 					if !headerReceived {
 						return fmt.Errorf("received data before header")
@@ -594,9 +594,9 @@ func retrieveCmd() *cobra.Command {
 						return fmt.Errorf("failed to write chunk: %w", err)
 					}
 					totalBytes += int64(n)
-					
+
 					// Progress reporting
-					if totalSize > 0 && totalBytes % (10 * 1024 * 1024) == 0 {
+					if totalSize > 0 && totalBytes%(10*1024*1024) == 0 {
 						logger.Info("Download progress",
 							zap.Int64("received", totalBytes),
 							zap.Int64("total", totalSize),
@@ -604,7 +604,7 @@ func retrieveCmd() *cobra.Command {
 					}
 				}
 			}
-			
+
 			logger.Info("File retrieved successfully via streaming",
 				zap.String("file_id", fileID),
 				zap.String("output", outputPath),
@@ -625,7 +625,7 @@ func retrieveCmd() *cobra.Command {
 func statusCmd() *cobra.Command {
 	var (
 		coordinatorAddr string
-		jsonOutput     bool
+		jsonOutput      bool
 	)
 
 	cmd := &cobra.Command{
@@ -638,58 +638,57 @@ func statusCmd() *cobra.Command {
 			// Define styles
 			var (
 				// Color palette
-				primaryColor   = lipgloss.Color("#7571f9")
-				warningColor   = lipgloss.Color("#ff9f43")
-				dangerColor    = lipgloss.Color("#ff6b6b")
-				mutedColor     = lipgloss.Color("#6c757d")
-				
+				primaryColor = lipgloss.Color("#7571f9")
+				warningColor = lipgloss.Color("#ff9f43")
+				dangerColor  = lipgloss.Color("#ff6b6b")
+				mutedColor   = lipgloss.Color("#6c757d")
+
 				// Muted text style
 				mutedStyle = lipgloss.NewStyle().Foreground(mutedColor)
-				
+
 				// Base styles
 				titleStyle = lipgloss.NewStyle().
-					Bold(true).
-					Foreground(primaryColor).
-					MarginBottom(1)
-				
-				sectionStyle = lipgloss.NewStyle().
-					Border(lipgloss.RoundedBorder()).
-					BorderForeground(primaryColor).
-					Padding(1).
-					MarginBottom(1)
-				
-				headerStyle = lipgloss.NewStyle().
-					Bold(true).
-					Foreground(primaryColor).
-					Underline(true).
-					MarginBottom(1)
-				
-				warningStyle = lipgloss.NewStyle().
-					Foreground(warningColor).
-					Bold(true)
-				
-				dangerStyle = lipgloss.NewStyle().
-					Foreground(dangerColor).
-					Bold(true)
-			)
+						Bold(true).
+						Foreground(primaryColor).
+						MarginBottom(1)
 
+				sectionStyle = lipgloss.NewStyle().
+						Border(lipgloss.RoundedBorder()).
+						BorderForeground(primaryColor).
+						Padding(1).
+						MarginBottom(1)
+
+				headerStyle = lipgloss.NewStyle().
+						Bold(true).
+						Foreground(primaryColor).
+						Underline(true).
+						MarginBottom(1)
+
+				warningStyle = lipgloss.NewStyle().
+						Foreground(warningColor).
+						Bold(true)
+
+				dangerStyle = lipgloss.NewStyle().
+						Foreground(dangerColor).
+						Bold(true)
+			)
 
 			// Connect to coordinator
 			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
 			if err != nil {
 				if jsonOutput {
 					errorStatus := map[string]interface{}{
-						"error":     true,
-						"message":   "Connection Failed",
-						"details":   err.Error(),
+						"error":       true,
+						"message":     "Connection Failed",
+						"details":     err.Error(),
 						"coordinator": coordinatorAddr,
-						"timestamp": time.Now().Format(time.RFC3339),
+						"timestamp":   time.Now().Format(time.RFC3339),
 					}
 					jsonBytes, _ := json.MarshalIndent(errorStatus, "", "  ")
 					fmt.Println(string(jsonBytes))
 					return nil // Don't return error to avoid double output
 				}
-				
+
 				errorBox := dangerStyle.Render("❌ Connection Failed") + "\n" +
 					mutedStyle.Render(fmt.Sprintf("Cannot connect to %s", coordinatorAddr))
 				fmt.Println(errorBox)
@@ -709,17 +708,17 @@ func statusCmd() *cobra.Command {
 			if err != nil {
 				if jsonOutput {
 					errorStatus := map[string]interface{}{
-						"error":     true,
-						"message":   "Coordinator Unreachable", 
-						"details":   err.Error(),
+						"error":       true,
+						"message":     "Coordinator Unreachable",
+						"details":     err.Error(),
 						"coordinator": coordinatorAddr,
-						"timestamp": time.Now().Format(time.RFC3339),
+						"timestamp":   time.Now().Format(time.RFC3339),
 					}
 					jsonBytes, _ := json.MarshalIndent(errorStatus, "", "  ")
 					fmt.Println(string(jsonBytes))
 					return nil
 				}
-				
+
 				errorBox := dangerStyle.Render("❌ Coordinator Unreachable") + "\n" +
 					mutedStyle.Render(err.Error())
 				fmt.Println(errorBox)
@@ -746,7 +745,7 @@ func statusCmd() *cobra.Command {
 					fmt.Println(string(jsonBytes))
 					return nil
 				}
-				
+
 				errorBox := warningStyle.Render("⚠️  Could not get detailed status") + "\n" +
 					mutedStyle.Render(err.Error())
 				fmt.Println(errorBox)
@@ -762,7 +761,7 @@ func statusCmd() *cobra.Command {
 			networkInfo := getNetworkInfo(coordinatorAddr)
 			networkPanel := sectionStyle.Render(
 				headerStyle.Render("🌐 NETWORK INFORMATION") + "\n\n" +
-				networkInfo,
+					networkInfo,
 			)
 			fmt.Println(networkPanel)
 
@@ -773,7 +772,7 @@ func statusCmd() *cobra.Command {
 			// Create nodes table
 			allNodes := append([]*protocol.NodeInfo{}, statusResp.LocalNodes...)
 			allNodes = append(allNodes, statusResp.RemoteNodes...)
-			
+
 			if len(allNodes) > 0 {
 				nodesTable := createNodesTable(allNodes, statusResp.MemberId)
 				fmt.Println(nodesTable)
@@ -785,7 +784,7 @@ func statusCmd() *cobra.Command {
 			// Show data tree panel
 			dataTreePanel := createDataTreePanel(client, ctx)
 			fmt.Println(dataTreePanel)
-				
+
 			// Show collective summary table
 			summaryTable := createSummaryTable(statusResp)
 			fmt.Println(summaryTable)
@@ -820,8 +819,8 @@ func peerCmd() *cobra.Command {
 func connectPeerCmd() *cobra.Command {
 	var (
 		coordinatorAddr string
-		peerID         string
-		peerAddr       string
+		peerID          string
+		peerAddr        string
 	)
 
 	cmd := &cobra.Command{
@@ -882,10 +881,10 @@ func setupLogger(verbose bool) *zap.Logger {
 	} else {
 		config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	}
-	
+
 	config.EncoderConfig.TimeKey = "timestamp"
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	
+
 	logger, _ := config.Build()
 	return logger
 }
@@ -898,13 +897,13 @@ func renderProgressBar(percent float64, width int) string {
 	if percent > 100 {
 		percent = 100
 	}
-	
+
 	filled := int(float64(width) * percent / 100)
 	empty := width - filled
-	
+
 	bar := lipgloss.NewStyle().Foreground(lipgloss.Color("#42c767")).Render(strings.Repeat("█", filled))
 	bar += lipgloss.NewStyle().Foreground(lipgloss.Color("#333333")).Render(strings.Repeat("░", empty))
-	
+
 	return fmt.Sprintf("%s %.1f%%", bar, percent)
 }
 
@@ -915,21 +914,21 @@ func renderMiniBar(percent float64, width int) string {
 	if percent > 100 {
 		percent = 100
 	}
-	
+
 	filled := int(float64(width) * percent / 100)
 	empty := width - filled
-	
+
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("#42c767")).Render(strings.Repeat("▪", filled)) +
 		lipgloss.NewStyle().Foreground(lipgloss.Color("#333333")).Render(strings.Repeat("·", empty))
 }
 
 func getNetworkInfo(coordinatorAddr string) string {
 	var lines []string
-	
+
 	// Get hostname
 	hostname, _ := os.Hostname()
 	lines = append(lines, fmt.Sprintf("Hostname: %s", hostname))
-	
+
 	// Parse coordinator address
 	host, port, err := net.SplitHostPort(coordinatorAddr)
 	if err == nil {
@@ -937,7 +936,7 @@ func getNetworkInfo(coordinatorAddr string) string {
 	} else {
 		lines = append(lines, fmt.Sprintf("Coordinator: %s", coordinatorAddr))
 	}
-	
+
 	// Get local IPs
 	lines = append(lines, "\nLocal IP Addresses:")
 	addrs, err := net.InterfaceAddrs()
@@ -952,7 +951,7 @@ func getNetworkInfo(coordinatorAddr string) string {
 	} else {
 		lines = append(lines, "  (unable to get IPs)")
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 
@@ -974,7 +973,7 @@ func createCoordinatorsTable(statusResp *protocol.GetStatusResponse, hbResp *pro
 			}
 		}).
 		Headers("MEMBER ID", "ADDRESS", "STATUS", "CONNECTION", "NODES", "CAPACITY", "USED", "LAST SEEN")
-	
+
 	// Add main coordinator with colored status
 	onlineStatus := lipgloss.NewStyle().Foreground(lipgloss.Color("#42c767")).Bold(true).Render("🔵 ONLINE")
 	connectionType := lipgloss.NewStyle().Foreground(lipgloss.Color("#7571f9")).Bold(true).Render("LOCAL")
@@ -988,7 +987,7 @@ func createCoordinatorsTable(statusResp *protocol.GetStatusResponse, hbResp *pro
 		formatBytes(statusResp.UsedStorageCapacity),
 		"now",
 	)
-	
+
 	// Add peers
 	for _, peer := range statusResp.Peers {
 		var status string
@@ -997,12 +996,12 @@ func createCoordinatorsTable(statusResp *protocol.GetStatusResponse, hbResp *pro
 		} else {
 			status = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff6b6b")).Render("🔴 UNHEALTHY")
 		}
-		
+
 		lastSeen := "never"
 		if peer.LastSeen > 0 {
 			lastSeen = fmt.Sprintf("%s ago", time.Since(time.Unix(peer.LastSeen, 0)).Round(time.Second))
 		}
-		
+
 		// Count nodes for this peer
 		nodeCount := 0
 		totalCap := int64(0)
@@ -1014,10 +1013,10 @@ func createCoordinatorsTable(statusResp *protocol.GetStatusResponse, hbResp *pro
 				usedCap += node.UsedCapacity
 			}
 		}
-		
+
 		// All peers in current architecture are direct connections
 		connType := lipgloss.NewStyle().Foreground(lipgloss.Color("#42c767")).Render("DIRECT")
-		
+
 		t.Row(
 			peer.MemberId,
 			peer.Address,
@@ -1029,7 +1028,7 @@ func createCoordinatorsTable(statusResp *protocol.GetStatusResponse, hbResp *pro
 			lastSeen,
 		)
 	}
-	
+
 	return lipgloss.NewStyle().
 		MarginBottom(1).
 		Render("📡 COORDINATORS\n" + t.Render())
@@ -1043,7 +1042,7 @@ func createNodesTable(nodes []*protocol.NodeInfo, localMemberID string) string {
 		}
 		return nodes[i].MemberId < nodes[j].MemberId
 	})
-	
+
 	// Create table for nodes
 	t := table.New().
 		Border(lipgloss.RoundedBorder()).
@@ -1061,7 +1060,7 @@ func createNodesTable(nodes []*protocol.NodeInfo, localMemberID string) string {
 			}
 		}).
 		Headers("NODE ID", "MEMBER", "ADDRESS", "STATUS", "CAPACITY", "USED", "USAGE", "TYPE")
-	
+
 	for _, node := range nodes {
 		var status string
 		if node.IsHealthy {
@@ -1069,19 +1068,19 @@ func createNodesTable(nodes []*protocol.NodeInfo, localMemberID string) string {
 		} else {
 			status = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff6b6b")).Render("🔴 UNHEALTHY")
 		}
-		
+
 		usage := float64(0)
 		if node.TotalCapacity > 0 {
 			usage = float64(node.UsedCapacity) / float64(node.TotalCapacity) * 100
 		}
-		
+
 		var nodeType string
 		if node.MemberId == localMemberID {
 			nodeType = lipgloss.NewStyle().Foreground(lipgloss.Color("#00d2d3")).Bold(true).Render("🏠 LOCAL")
 		} else {
 			nodeType = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff9f43")).Render("🌍 REMOTE")
 		}
-		
+
 		// Color usage percentage based on value
 		usageColor := lipgloss.Color("#42c767") // Green
 		if usage > 80 {
@@ -1089,10 +1088,10 @@ func createNodesTable(nodes []*protocol.NodeInfo, localMemberID string) string {
 		} else if usage > 60 {
 			usageColor = lipgloss.Color("#ff9f43") // Orange
 		}
-		
+
 		usageBar := renderMiniBar(usage, 10)
 		usageText := lipgloss.NewStyle().Foreground(usageColor).Render(fmt.Sprintf("%.1f%%", usage))
-		
+
 		t.Row(
 			node.NodeId,
 			node.MemberId,
@@ -1104,7 +1103,7 @@ func createNodesTable(nodes []*protocol.NodeInfo, localMemberID string) string {
 			nodeType,
 		)
 	}
-	
+
 	return lipgloss.NewStyle().
 		MarginBottom(1).
 		Render("💾 STORAGE NODES\n" + t.Render())
@@ -1128,7 +1127,7 @@ func createSummaryTable(statusResp *protocol.GetStatusResponse) string {
 	var totalCapacity, totalUsed int64
 	totalNodes := len(statusResp.LocalNodes) + len(statusResp.RemoteNodes)
 	totalCoordinators := 1 + len(statusResp.Peers)
-	
+
 	// Add all capacity
 	for _, node := range statusResp.LocalNodes {
 		totalCapacity += node.TotalCapacity
@@ -1138,12 +1137,12 @@ func createSummaryTable(statusResp *protocol.GetStatusResponse) string {
 		totalCapacity += node.TotalCapacity
 		totalUsed += node.UsedCapacity
 	}
-	
+
 	usagePercent := float64(0)
 	if totalCapacity > 0 {
 		usagePercent = float64(totalUsed) / float64(totalCapacity) * 100
 	}
-	
+
 	// Create summary table
 	t := table.New().
 		Border(lipgloss.DoubleBorder()).
@@ -1161,7 +1160,7 @@ func createSummaryTable(statusResp *protocol.GetStatusResponse) string {
 			}
 		}).
 		Headers("METRIC", "VALUE", "VISUALIZATION")
-	
+
 	// Color for usage
 	usageColor := lipgloss.Color("#42c767") // Green
 	if usagePercent > 80 {
@@ -1169,7 +1168,7 @@ func createSummaryTable(statusResp *protocol.GetStatusResponse) string {
 	} else if usagePercent > 60 {
 		usageColor = lipgloss.Color("#ff9f43") // Orange
 	}
-	
+
 	// Add rows
 	t.Row(
 		"🌐 Total Coordinators",
@@ -1193,10 +1192,10 @@ func createSummaryTable(statusResp *protocol.GetStatusResponse) string {
 	)
 	t.Row(
 		"✅ Available Storage",
-		formatBytes(totalCapacity - totalUsed),
+		formatBytes(totalCapacity-totalUsed),
 		lipgloss.NewStyle().Foreground(usageColor).Render(fmt.Sprintf("%.1f%% used", usagePercent)),
 	)
-	
+
 	return lipgloss.NewStyle().
 		MarginBottom(1).
 		Render("📊 COLLECTIVE SUMMARY\n" + t.Render())
@@ -1206,11 +1205,11 @@ func renderStatCard(label, value string, color lipgloss.Color) string {
 	labelStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#6c757d")).
 		Bold(false)
-	
+
 	valueStyle := lipgloss.NewStyle().
 		Foreground(color).
 		Bold(true)
-	
+
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(color).
@@ -1218,7 +1217,7 @@ func renderStatCard(label, value string, color lipgloss.Color) string {
 		Width(18).
 		Render(
 			labelStyle.Render(label) + "\n" +
-			valueStyle.Render(value),
+				valueStyle.Render(value),
 		)
 }
 
@@ -1227,7 +1226,7 @@ func renderStatCard(label, value string, color lipgloss.Color) string {
 func mkdirCmd() *cobra.Command {
 	var (
 		coordinatorAddr string
-		mode           uint32
+		mode            uint32
 	)
 
 	cmd := &cobra.Command{
@@ -1317,9 +1316,9 @@ func lsCmd() *cobra.Command {
 				if entry.IsDirectory {
 					typeChar = "d"
 				}
-				
+
 				modTime := time.Unix(entry.ModifiedTime, 0).Format("2006-01-02 15:04")
-				fmt.Printf("%s %o %8s %s %s\n", 
+				fmt.Printf("%s %o %8s %s %s\n",
 					typeChar,
 					entry.Mode,
 					formatBytes(entry.Size),
@@ -1460,8 +1459,8 @@ func mountCmd() *cobra.Command {
 			defer logger.Sync()
 
 			mountpoint := args[0]
-			
-			logger.Info("Mounting collective storage", 
+
+			logger.Info("Mounting collective storage",
 				zap.String("mountpoint", mountpoint),
 				zap.String("coordinator", coordinatorAddr))
 
@@ -1482,19 +1481,19 @@ func mountCollectiveFS(coordinatorAddr, mountpoint string, logger *zap.Logger) e
 func outputStatusAsJSON(statusResp *protocol.GetStatusResponse, hbResp *protocol.HeartbeatResponse, coordinatorAddr string) error {
 	// Build comprehensive status structure
 	status := map[string]interface{}{
-		"timestamp":       time.Now().Format(time.RFC3339),
+		"timestamp": time.Now().Format(time.RFC3339),
 		"collective_info": map[string]interface{}{
 			"queried_coordinator": coordinatorAddr,
 			"response_time_ms":    calculateResponseTime(),
 			"cluster_health":      "healthy", // TODO: calculate based on node/coordinator states
 		},
 		"coordinator_info": map[string]interface{}{
-			"member_id":           statusResp.MemberId,
-			"address":            coordinatorAddr,
+			"member_id": statusResp.MemberId,
+			"address":   coordinatorAddr,
 			"heartbeat_response": map[string]interface{}{
-				"member_id":  hbResp.MemberId,
-				"timestamp":  hbResp.Timestamp,
-				"responded":  true,
+				"member_id": hbResp.MemberId,
+				"timestamp": hbResp.Timestamp,
+				"responded": true,
 			},
 		},
 		"peers": buildPeersInfo(statusResp.Peers),
@@ -1538,10 +1537,10 @@ func outputStatusAsJSON(statusResp *protocol.GetStatusResponse, hbResp *protocol
 // buildPeersInfo converts peer info to structured format
 func buildPeersInfo(peers []*protocol.PeerInfo) []map[string]interface{} {
 	var peersList []map[string]interface{}
-	
+
 	for _, peer := range peers {
 		peerInfo := map[string]interface{}{
-			"member_id":      peer.MemberId,
+			"member_id":     peer.MemberId,
 			"address":       peer.Address,
 			"is_healthy":    peer.IsHealthy,
 			"last_seen":     time.Unix(peer.LastSeen, 0).Format(time.RFC3339),
@@ -1550,37 +1549,37 @@ func buildPeersInfo(peers []*protocol.PeerInfo) []map[string]interface{} {
 		}
 		peersList = append(peersList, peerInfo)
 	}
-	
+
 	return peersList
 }
 
 // buildNodesInfo converts node info to structured format
 func buildNodesInfo(nodes []*protocol.NodeInfo, currentMember string, isLocal bool) []map[string]interface{} {
 	var nodesList []map[string]interface{}
-	
+
 	for _, node := range nodes {
 		utilizationPercent := float64(0)
 		if node.TotalCapacity > 0 {
 			utilizationPercent = float64(node.UsedCapacity) / float64(node.TotalCapacity) * 100
 		}
-		
+
 		nodeInfo := map[string]interface{}{
-			"node_id":             node.NodeId,
-			"member_id":           node.MemberId,
-			"address":            node.Address,
-			"is_local":           isLocal,
-			"is_healthy":         node.IsHealthy,
-			"status":             getHealthStatus(node.IsHealthy),
+			"node_id":    node.NodeId,
+			"member_id":  node.MemberId,
+			"address":    node.Address,
+			"is_local":   isLocal,
+			"is_healthy": node.IsHealthy,
+			"status":     getHealthStatus(node.IsHealthy),
 			"capacity": map[string]interface{}{
-				"total_bytes":        node.TotalCapacity,
-				"used_bytes":         node.UsedCapacity,
-				"available_bytes":    node.TotalCapacity - node.UsedCapacity,
+				"total_bytes":         node.TotalCapacity,
+				"used_bytes":          node.UsedCapacity,
+				"available_bytes":     node.TotalCapacity - node.UsedCapacity,
 				"utilization_percent": fmt.Sprintf("%.1f", utilizationPercent),
 			},
 		}
 		nodesList = append(nodesList, nodeInfo)
 	}
-	
+
 	return nodesList
 }
 
@@ -1591,13 +1590,13 @@ func buildNetworkInfo(coordinatorAddr string) map[string]interface{} {
 		host = coordinatorAddr
 		port = "unknown"
 	}
-	
+
 	return map[string]interface{}{
 		"coordinator_host": host,
 		"coordinator_port": port,
 		"connection_type":  "grpc",
-		"security":        "insecure", // Current state
-		"reachable":       true,       // If we got here, it's reachable
+		"security":         "insecure", // Current state
+		"reachable":        true,       // If we got here, it's reachable
 	}
 }
 

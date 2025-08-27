@@ -16,10 +16,10 @@ import (
 // CreateDirectory creates a new directory
 func (c *Coordinator) CreateDirectory(ctx context.Context, req *protocol.CreateDirectoryRequest) (*protocol.CreateDirectoryResponse, error) {
 	c.logger.Info("CreateDirectory request", zap.String("path", req.Path))
-	
+
 	c.directoryMutex.Lock()
 	defer c.directoryMutex.Unlock()
-	
+
 	// Check if directory already exists
 	if _, exists := c.directories[req.Path]; exists {
 		return &protocol.CreateDirectoryResponse{
@@ -27,7 +27,7 @@ func (c *Coordinator) CreateDirectory(ctx context.Context, req *protocol.CreateD
 			Message: "Directory already exists",
 		}, nil
 	}
-	
+
 	// Check if parent exists (except for root)
 	if req.Path != "/" {
 		parent := getParentPath(req.Path)
@@ -40,13 +40,13 @@ func (c *Coordinator) CreateDirectory(ctx context.Context, req *protocol.CreateD
 			}
 		}
 	}
-	
+
 	// Create directory entry
 	mode := os.FileMode(0755)
 	if req.Mode != 0 {
 		mode = os.FileMode(req.Mode)
 	}
-	
+
 	dir := &types.Directory{
 		Path:     req.Path,
 		Parent:   getParentPath(req.Path),
@@ -55,9 +55,9 @@ func (c *Coordinator) CreateDirectory(ctx context.Context, req *protocol.CreateD
 		Modified: time.Now(),
 		Owner:    c.memberID,
 	}
-	
+
 	c.directories[req.Path] = dir
-	
+
 	// Update parent's children list
 	if dir.Parent != "" {
 		if parentDir, exists := c.directories[dir.Parent]; exists {
@@ -65,9 +65,9 @@ func (c *Coordinator) CreateDirectory(ctx context.Context, req *protocol.CreateD
 			parentDir.Modified = time.Now()
 		}
 	}
-	
+
 	c.logger.Info("Directory created successfully", zap.String("path", req.Path))
-	
+
 	return &protocol.CreateDirectoryResponse{
 		Success: true,
 		Message: "Directory created successfully",
@@ -77,10 +77,10 @@ func (c *Coordinator) CreateDirectory(ctx context.Context, req *protocol.CreateD
 // ListDirectory lists the contents of a directory
 func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirectoryRequest) (*protocol.ListDirectoryResponse, error) {
 	c.logger.Debug("ListDirectory request", zap.String("path", req.Path))
-	
+
 	c.directoryMutex.RLock()
 	defer c.directoryMutex.RUnlock()
-	
+
 	dir, exists := c.directories[req.Path]
 	if !exists {
 		return &protocol.ListDirectoryResponse{
@@ -88,9 +88,9 @@ func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirec
 			Entries: nil,
 		}, nil
 	}
-	
+
 	var entries []*protocol.DirectoryEntry
-	
+
 	// Add subdirectories
 	for _, childPath := range dir.Children {
 		if childDir, exists := c.directories[childPath]; exists {
@@ -117,7 +117,7 @@ func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirec
 			})
 		}
 	}
-	
+
 	return &protocol.ListDirectoryResponse{
 		Success: true,
 		Entries: entries,
@@ -127,10 +127,10 @@ func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirec
 // DeleteDirectory removes a directory
 func (c *Coordinator) DeleteDirectory(ctx context.Context, req *protocol.DeleteDirectoryRequest) (*protocol.DeleteDirectoryResponse, error) {
 	c.logger.Info("RemoveDirectory request", zap.String("path", req.Path))
-	
+
 	c.directoryMutex.Lock()
 	defer c.directoryMutex.Unlock()
-	
+
 	// Check if directory exists
 	dir, exists := c.directories[req.Path]
 	if !exists {
@@ -139,7 +139,7 @@ func (c *Coordinator) DeleteDirectory(ctx context.Context, req *protocol.DeleteD
 			Message: "Directory does not exist",
 		}, nil
 	}
-	
+
 	// Check if directory is empty (unless recursive)
 	if !req.Recursive && len(dir.Children) > 0 {
 		return &protocol.DeleteDirectoryResponse{
@@ -147,7 +147,7 @@ func (c *Coordinator) DeleteDirectory(ctx context.Context, req *protocol.DeleteD
 			Message: "Directory is not empty",
 		}, nil
 	}
-	
+
 	// If recursive, remove all children first
 	if req.Recursive {
 		if err := c.removeDirectoryRecursive(req.Path); err != nil {
@@ -157,7 +157,7 @@ func (c *Coordinator) DeleteDirectory(ctx context.Context, req *protocol.DeleteD
 			}, nil
 		}
 	}
-	
+
 	// Remove from parent's children list
 	if dir.Parent != "" {
 		if parentDir, exists := c.directories[dir.Parent]; exists {
@@ -170,12 +170,12 @@ func (c *Coordinator) DeleteDirectory(ctx context.Context, req *protocol.DeleteD
 			}
 		}
 	}
-	
+
 	// Remove the directory
 	delete(c.directories, req.Path)
-	
+
 	c.logger.Info("Directory removed successfully", zap.String("path", req.Path))
-	
+
 	return &protocol.DeleteDirectoryResponse{
 		Success: true,
 		Message: "Directory removed successfully",
@@ -185,10 +185,10 @@ func (c *Coordinator) DeleteDirectory(ctx context.Context, req *protocol.DeleteD
 // MoveEntry moves a directory or file to a new location
 func (c *Coordinator) MoveEntry(ctx context.Context, req *protocol.MoveEntryRequest) (*protocol.MoveEntryResponse, error) {
 	c.logger.Info("MoveDirectory request", zap.String("source", req.OldPath), zap.String("dest", req.NewPath))
-	
+
 	c.directoryMutex.Lock()
 	defer c.directoryMutex.Unlock()
-	
+
 	// Check if source exists
 	sourceDir, exists := c.directories[req.OldPath]
 	if !exists {
@@ -197,13 +197,13 @@ func (c *Coordinator) MoveEntry(ctx context.Context, req *protocol.MoveEntryRequ
 			// Handle file move
 			return c.moveFile(req.OldPath, req.NewPath)
 		}
-		
+
 		return &protocol.MoveEntryResponse{
 			Success: false,
 			Message: "Source path does not exist",
 		}, nil
 	}
-	
+
 	// Check if destination already exists
 	if _, exists := c.directories[req.NewPath]; exists {
 		return &protocol.MoveEntryResponse{
@@ -211,7 +211,7 @@ func (c *Coordinator) MoveEntry(ctx context.Context, req *protocol.MoveEntryRequ
 			Message: "Destination already exists",
 		}, nil
 	}
-	
+
 	// Check if destination parent exists
 	destParent := getParentPath(req.NewPath)
 	if destParent != "" && destParent != "/" {
@@ -222,7 +222,7 @@ func (c *Coordinator) MoveEntry(ctx context.Context, req *protocol.MoveEntryRequ
 			}, nil
 		}
 	}
-	
+
 	// Remove from old parent's children
 	if sourceDir.Parent != "" {
 		if parentDir, exists := c.directories[sourceDir.Parent]; exists {
@@ -235,7 +235,7 @@ func (c *Coordinator) MoveEntry(ctx context.Context, req *protocol.MoveEntryRequ
 			}
 		}
 	}
-	
+
 	// Create new directory entry
 	newDir := &types.Directory{
 		Path:     req.NewPath,
@@ -245,25 +245,25 @@ func (c *Coordinator) MoveEntry(ctx context.Context, req *protocol.MoveEntryRequ
 		Modified: time.Now(),
 		Owner:    sourceDir.Owner,
 	}
-	
+
 	// Update children paths recursively
 	c.updateChildPaths(req.OldPath, req.NewPath, sourceDir.Children)
-	
+
 	// Add to new parent's children
 	if destParent != "" {
 		if parentDir, exists := c.directories[destParent]; exists {
 			parentDir.Children = append(parentDir.Children, req.NewPath)
 		}
 	}
-	
+
 	// Update the directory map
 	c.directories[req.NewPath] = newDir
 	delete(c.directories, req.OldPath)
-	
-	c.logger.Info("Directory moved successfully", 
-		zap.String("source", req.OldPath), 
+
+	c.logger.Info("Directory moved successfully",
+		zap.String("source", req.OldPath),
 		zap.String("dest", req.NewPath))
-	
+
 	return &protocol.MoveEntryResponse{
 		Success: true,
 		Message: "Directory moved successfully",
@@ -279,7 +279,7 @@ func (c *Coordinator) moveFile(sourcePath, destPath string) (*protocol.MoveEntry
 			Message: "Source file does not exist",
 		}, nil
 	}
-	
+
 	// Check if destination already exists
 	if _, exists := c.fileEntries[destPath]; exists {
 		return &protocol.MoveEntryResponse{
@@ -287,7 +287,7 @@ func (c *Coordinator) moveFile(sourcePath, destPath string) (*protocol.MoveEntry
 			Message: "Destination file already exists",
 		}, nil
 	}
-	
+
 	// Check destination parent
 	destParent := getParentPath(destPath)
 	if destParent != "" && destParent != "/" {
@@ -301,7 +301,7 @@ func (c *Coordinator) moveFile(sourcePath, destPath string) (*protocol.MoveEntry
 			}, nil
 		}
 	}
-	
+
 	// Remove from old parent
 	sourceParent := getParentPath(sourcePath)
 	if sourceParent != "" {
@@ -315,16 +315,16 @@ func (c *Coordinator) moveFile(sourcePath, destPath string) (*protocol.MoveEntry
 			}
 		}
 	}
-	
+
 	// Update file entry
 	newFileEntry := *fileEntry
 	newFileEntry.Path = destPath
 	newFileEntry.Modified = time.Now()
-	
+
 	// Update the maps
 	c.fileEntries[destPath] = &newFileEntry
 	delete(c.fileEntries, sourcePath)
-	
+
 	// Update chunk mapping
 	c.chunkMutex.Lock()
 	if chunks, exists := c.fileChunks[sourcePath]; exists {
@@ -332,7 +332,7 @@ func (c *Coordinator) moveFile(sourcePath, destPath string) (*protocol.MoveEntry
 		delete(c.fileChunks, sourcePath)
 	}
 	c.chunkMutex.Unlock()
-	
+
 	return &protocol.MoveEntryResponse{
 		Success: true,
 		Message: "File moved successfully",
@@ -345,7 +345,7 @@ func (c *Coordinator) removeDirectoryRecursive(path string) error {
 	if !exists {
 		return nil
 	}
-	
+
 	// Remove all children
 	for _, childPath := range dir.Children {
 		if _, isDir := c.directories[childPath]; isDir {
@@ -355,14 +355,14 @@ func (c *Coordinator) removeDirectoryRecursive(path string) error {
 		} else if _, isFile := c.fileEntries[childPath]; isFile {
 			// Remove file
 			delete(c.fileEntries, childPath)
-			
+
 			// Remove chunk mappings
 			c.chunkMutex.Lock()
 			delete(c.fileChunks, childPath)
 			c.chunkMutex.Unlock()
 		}
 	}
-	
+
 	return nil
 }
 
@@ -370,14 +370,14 @@ func (c *Coordinator) removeDirectoryRecursive(path string) error {
 func (c *Coordinator) updateChildPaths(oldBase, newBase string, children []string) {
 	for _, childPath := range children {
 		newChildPath := strings.Replace(childPath, oldBase, newBase, 1)
-		
+
 		if childDir, exists := c.directories[childPath]; exists {
 			// Update directory
 			childDir.Path = newChildPath
 			childDir.Parent = getParentPath(newChildPath)
 			c.directories[newChildPath] = childDir
 			delete(c.directories, childPath)
-			
+
 			// Recursively update its children
 			c.updateChildPaths(childPath, newChildPath, childDir.Children)
 		} else if childFile, exists := c.fileEntries[childPath]; exists {
@@ -385,7 +385,7 @@ func (c *Coordinator) updateChildPaths(oldBase, newBase string, children []strin
 			childFile.Path = newChildPath
 			c.fileEntries[newChildPath] = childFile
 			delete(c.fileEntries, childPath)
-			
+
 			// Update chunk mapping
 			c.chunkMutex.Lock()
 			if chunks, exists := c.fileChunks[childPath]; exists {
@@ -400,10 +400,10 @@ func (c *Coordinator) updateChildPaths(oldBase, newBase string, children []strin
 // StatEntry returns information about a file or directory
 func (c *Coordinator) StatEntry(ctx context.Context, req *protocol.StatEntryRequest) (*protocol.StatEntryResponse, error) {
 	c.logger.Debug("StatEntry request", zap.String("path", req.Path))
-	
+
 	c.directoryMutex.RLock()
 	defer c.directoryMutex.RUnlock()
-	
+
 	// Check if it's a directory
 	if dir, exists := c.directories[req.Path]; exists {
 		return &protocol.StatEntryResponse{
@@ -418,7 +418,7 @@ func (c *Coordinator) StatEntry(ctx context.Context, req *protocol.StatEntryRequ
 			},
 		}, nil
 	}
-	
+
 	// Check if it's a file
 	if fileEntry, exists := c.fileEntries[req.Path]; exists {
 		return &protocol.StatEntryResponse{
@@ -433,7 +433,7 @@ func (c *Coordinator) StatEntry(ctx context.Context, req *protocol.StatEntryRequ
 			},
 		}, nil
 	}
-	
+
 	return &protocol.StatEntryResponse{
 		Success: false,
 		Entry:   nil,
@@ -445,7 +445,7 @@ func getParentPath(path string) string {
 	if path == "/" || path == "" {
 		return ""
 	}
-	
+
 	lastSlash := strings.LastIndex(path, "/")
 	if lastSlash == 0 {
 		return "/"
@@ -453,7 +453,7 @@ func getParentPath(path string) string {
 	if lastSlash == -1 {
 		return ""
 	}
-	
+
 	return path[:lastSlash]
 }
 
@@ -462,11 +462,11 @@ func getBaseName(path string) string {
 	if path == "/" {
 		return "/"
 	}
-	
+
 	parts := strings.Split(path, "/")
 	if len(parts) > 0 {
 		return parts[len(parts)-1]
 	}
-	
+
 	return path
 }

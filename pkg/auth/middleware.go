@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
-	
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -48,7 +48,7 @@ func (ai *AuthInterceptor) UnaryServerInterceptor() grpc.UnaryServerInterceptor 
 			// If auth not required, continue without identity
 			newCtx = ctx
 		}
-		
+
 		// Call the handler with authenticated context
 		return handler(newCtx, req)
 	}
@@ -66,13 +66,13 @@ func (ai *AuthInterceptor) StreamServerInterceptor() grpc.StreamServerIntercepto
 			// If auth not required, continue without identity
 			newCtx = ss.Context()
 		}
-		
+
 		// Wrap the stream with authenticated context
 		wrappedStream := &authenticatedServerStream{
 			ServerStream: ss,
 			ctx:          newCtx,
 		}
-		
+
 		// Call the handler with wrapped stream
 		return handler(srv, wrappedStream)
 	}
@@ -85,7 +85,7 @@ func (ai *AuthInterceptor) UnaryClientInterceptor(token string) grpc.UnaryClient
 		if token != "" {
 			ctx = metadata.AppendToOutgoingContext(ctx, TokenMetadataKey, fmt.Sprintf("Bearer %s", token))
 		}
-		
+
 		// Invoke the RPC
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
@@ -98,7 +98,7 @@ func (ai *AuthInterceptor) StreamClientInterceptor(token string) grpc.StreamClie
 		if token != "" {
 			ctx = metadata.AppendToOutgoingContext(ctx, TokenMetadataKey, fmt.Sprintf("Bearer %s", token))
 		}
-		
+
 		// Create the stream
 		return streamer(ctx, desc, cc, method, opts...)
 	}
@@ -110,14 +110,14 @@ func (ai *AuthInterceptor) authenticate(ctx context.Context) (context.Context, e
 	if identity, err := ai.authenticateFromTLS(ctx); err == nil {
 		return context.WithValue(ctx, IdentityContextKey, identity), nil
 	}
-	
+
 	// Try to authenticate via token
 	if ai.tokenManager != nil {
 		if identity, err := ai.authenticateFromToken(ctx); err == nil {
 			return context.WithValue(ctx, IdentityContextKey, identity), nil
 		}
 	}
-	
+
 	return ctx, fmt.Errorf("no valid authentication method found")
 }
 
@@ -128,43 +128,43 @@ func (ai *AuthInterceptor) authenticateFromTLS(ctx context.Context) (*Identity, 
 	if !ok {
 		return nil, fmt.Errorf("no peer info in context")
 	}
-	
+
 	// Check if TLS is enabled
 	tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo)
 	if !ok {
 		return nil, fmt.Errorf("no TLS info in context")
 	}
-	
+
 	// Verify we have peer certificates
 	if len(tlsInfo.State.PeerCertificates) == 0 {
 		return nil, fmt.Errorf("no peer certificates")
 	}
-	
+
 	// Extract identity from certificate directly if no authenticator
 	cert := tlsInfo.State.PeerCertificates[0]
-	
+
 	if ai.authenticator != nil {
 		// Use authenticator if available
 		identity, err := ai.authenticator.GetIdentity(cert)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get identity from certificate: %w", err)
 		}
-		
+
 		// Validate the identity
 		if err := ai.authenticator.ValidateIdentity(ctx, identity); err != nil {
 			return nil, fmt.Errorf("identity validation failed: %w", err)
 		}
-		
+
 		return identity, nil
 	}
-	
+
 	// Extract identity manually from certificate
 	certManager := &CertManager{}
 	identity, err := certManager.GetIdentityFromCert(cert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract identity: %w", err)
 	}
-	
+
 	return identity, nil
 }
 
@@ -175,25 +175,25 @@ func (ai *AuthInterceptor) authenticateFromToken(ctx context.Context) (*Identity
 	if !ok {
 		return nil, fmt.Errorf("no metadata in context")
 	}
-	
+
 	// Get authorization header
 	authHeaders := md.Get(TokenMetadataKey)
 	if len(authHeaders) == 0 {
 		return nil, fmt.Errorf("no authorization header")
 	}
-	
+
 	// Parse Bearer token
 	var token string
 	if _, err := fmt.Sscanf(authHeaders[0], "Bearer %s", &token); err != nil {
 		return nil, fmt.Errorf("invalid authorization header format")
 	}
-	
+
 	// Validate token and get identity
 	identity, err := ai.tokenManager.ValidateToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("token validation failed: %w", err)
 	}
-	
+
 	return identity, nil
 }
 
@@ -220,11 +220,11 @@ func RequireComponentType(componentType ComponentType) grpc.UnaryServerIntercept
 		if !ok {
 			return nil, status.Error(codes.Unauthenticated, "no identity in context")
 		}
-		
+
 		if identity.Type != componentType {
 			return nil, status.Errorf(codes.PermissionDenied, "requires %s component, got %s", componentType, identity.Type)
 		}
-		
+
 		return handler(ctx, req)
 	}
 }
@@ -236,11 +236,11 @@ func RequireMemberID(memberID string) grpc.UnaryServerInterceptor {
 		if !ok {
 			return nil, status.Error(codes.Unauthenticated, "no identity in context")
 		}
-		
+
 		if identity.MemberID != memberID {
 			return nil, status.Errorf(codes.PermissionDenied, "requires member %s, got %s", memberID, identity.MemberID)
 		}
-		
+
 		return handler(ctx, req)
 	}
 }

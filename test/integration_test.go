@@ -98,21 +98,21 @@ func TestThreeMemberCollective(t *testing.T) {
 	// Test chunk storage
 	t.Run("ChunkStorage", func(t *testing.T) {
 		cm := storage.NewChunkManager()
-		
+
 		// Create test data
 		testData := []byte("Hello, distributed storage collective!")
 		fileID := types.FileID("test-file-001")
-		
+
 		// Split into chunks
 		chunks, err := cm.SplitIntoChunks(testData, fileID)
 		if err != nil {
 			t.Fatalf("Failed to split data into chunks: %v", err)
 		}
-		
+
 		if len(chunks) == 0 {
 			t.Error("No chunks created")
 		}
-		
+
 		t.Logf("Created %d chunks from test data", len(chunks))
 	})
 
@@ -128,7 +128,7 @@ func TestThreeMemberCollective(t *testing.T) {
 		// Simulate node failure
 		aliceNode1.Stop()
 		time.Sleep(1 * time.Second)
-		
+
 		// System should continue functioning
 		t.Log("Node failure handled")
 	})
@@ -166,7 +166,7 @@ func setupNode(memberID, nodeID, address, coordAddr string, logger *zap.Logger) 
 func TestChunkDistribution(t *testing.T) {
 	// Test the distribution strategy
 	ds := storage.NewDistributionStrategy(2) // 2x replication
-	
+
 	// Create mock nodes
 	nodes := []*types.StorageNode{
 		{
@@ -191,19 +191,19 @@ func TestChunkDistribution(t *testing.T) {
 			IsHealthy:     true,
 		},
 	}
-	
+
 	// Create mock chunks
 	chunks := []types.Chunk{
 		{ID: "chunk-1", Size: 1024},
 		{ID: "chunk-2", Size: 2048},
 		{ID: "chunk-3", Size: 1536},
 	}
-	
+
 	allocations, err := ds.AllocateChunks(chunks, nodes)
 	if err != nil {
 		t.Fatalf("Failed to allocate chunks: %v", err)
 	}
-	
+
 	// Verify each chunk is replicated
 	for chunkID, nodeIDs := range allocations {
 		if len(nodeIDs) < 2 {
@@ -211,10 +211,10 @@ func TestChunkDistribution(t *testing.T) {
 		}
 		t.Logf("Chunk %s allocated to nodes: %v", chunkID, nodeIDs)
 	}
-	
+
 	// Test member diversity
 	diverseAllocations := ds.EnsureMemberDiversity(allocations, nodes)
-	
+
 	for chunkID, nodeIDs := range diverseAllocations {
 		members := make(map[types.MemberID]bool)
 		for _, nodeID := range nodeIDs {
@@ -232,7 +232,7 @@ func TestChunkDistribution(t *testing.T) {
 func TestChunkTransfer(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	ct := storage.NewChunkTransfer(logger)
-	
+
 	// This would test chunk transfer between nodes
 	// For now, just verify the transfer manager is created
 	if ct == nil {

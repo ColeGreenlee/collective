@@ -7,8 +7,8 @@ import (
 
 	"collective/pkg/protocol"
 
-	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/hanwen/go-fuse/v2/fs"
+	"github.com/hanwen/go-fuse/v2/fuse"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -17,9 +17,9 @@ import (
 type CollectiveFile struct {
 	fs.Inode
 	coordinatorAddr string
-	logger         *zap.Logger
-	path           string
-	size           int64
+	logger          *zap.Logger
+	path            string
+	size            int64
 }
 
 // NewCollectiveFile creates a new file instance
@@ -27,7 +27,7 @@ func NewCollectiveFile(path string, coordinatorAddr string, logger *zap.Logger) 
 	return &CollectiveFile{
 		path:            path,
 		coordinatorAddr: coordinatorAddr,
-		logger:         logger,
+		logger:          logger,
 	}
 }
 
@@ -37,16 +37,16 @@ func (f *CollectiveFile) Getattr(ctx context.Context, fh fs.FileHandle, out *fus
 	out.Attr.Mode = 0644 | syscall.S_IFREG
 	out.Attr.Size = uint64(f.size)
 	out.Attr.Nlink = 1
-	
+
 	// Use current time as placeholder
 	now := uint64(time.Now().Unix())
 	out.Attr.Mtime = now
 	out.Attr.Atime = now
 	out.Attr.Ctime = now
-	
+
 	// Cache for a short time
 	out.SetTimeout(1 * time.Second)
-	
+
 	return 0
 }
 
@@ -60,7 +60,7 @@ func (f *CollectiveFile) Open(ctx context.Context, flags uint32) (fh fs.FileHand
 // Read reads data from the file
 func (f *CollectiveFile) Read(ctx context.Context, fh fs.FileHandle, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	f.logger.Debug("Read request", zap.String("path", f.path), zap.Int64("offset", off), zap.Int("size", len(dest)))
-	
+
 	// Connect to coordinator
 	conn, err := grpc.Dial(f.coordinatorAddr, grpc.WithInsecure())
 	if err != nil {
@@ -68,34 +68,34 @@ func (f *CollectiveFile) Read(ctx context.Context, fh fs.FileHandle, dest []byte
 		return nil, syscall.EIO
 	}
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	
+
 	// Request data from coordinator
 	resp, err := client.ReadFile(readCtx, &protocol.ReadFileRequest{
 		Path:   f.path,
 		Offset: off,
 		Length: int64(len(dest)),
 	})
-	
+
 	if err != nil {
 		f.logger.Error("Failed to read file from coordinator", zap.Error(err))
 		return nil, syscall.EIO
 	}
-	
+
 	if !resp.Success {
 		return nil, syscall.ENOENT
 	}
-	
+
 	return fuse.ReadResultData(resp.Data), 0
 }
 
 // Write writes data to the file
 func (f *CollectiveFile) Write(ctx context.Context, fh fs.FileHandle, data []byte, off int64) (uint32, syscall.Errno) {
 	f.logger.Debug("Write request", zap.String("path", f.path), zap.Int64("offset", off), zap.Int("size", len(data)))
-	
+
 	// Connect to coordinator
 	conn, err := grpc.Dial(f.coordinatorAddr, grpc.WithInsecure())
 	if err != nil {
@@ -103,31 +103,31 @@ func (f *CollectiveFile) Write(ctx context.Context, fh fs.FileHandle, data []byt
 		return 0, syscall.EIO
 	}
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	
+
 	// Send data to coordinator
 	resp, err := client.WriteFile(writeCtx, &protocol.WriteFileRequest{
 		Path:   f.path,
 		Data:   data,
 		Offset: off,
 	})
-	
+
 	if err != nil {
 		f.logger.Error("Failed to write file to coordinator", zap.Error(err))
 		return 0, syscall.EIO
 	}
-	
+
 	if !resp.Success {
 		f.logger.Error("Coordinator rejected write", zap.String("message", resp.Message))
 		return 0, syscall.EIO
 	}
-	
+
 	// Update file size
 	f.size = off + int64(len(data))
-	
+
 	return uint32(resp.BytesWritten), 0
 }
 

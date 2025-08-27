@@ -30,19 +30,19 @@ func setupTestCoordinator(t *testing.T, memberID string, address string) *TestCo
 	cfg := &config.CoordinatorConfig{
 		Address: address,
 	}
-	
+
 	coord := New(cfg, memberID, logger)
-	
+
 	// Start in background
 	go func() {
 		if err := coord.Start(); err != nil {
 			t.Logf("Coordinator %s start error: %v", memberID, err)
 		}
 	}()
-	
+
 	// Wait for startup
 	time.Sleep(100 * time.Millisecond)
-	
+
 	return &TestCoordinator{
 		Coordinator: coord,
 		Address:     address,
@@ -58,15 +58,15 @@ func (tc *TestCoordinator) cleanup() {
 func TestDirectoryOperations(t *testing.T) {
 	coord := setupTestCoordinator(t, "test-coord", "localhost:18001")
 	defer coord.cleanup()
-	
+
 	// Connect client
 	conn, err := grpc.Dial(coord.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	ctx := context.Background()
-	
+
 	t.Run("CreateDirectory", func(t *testing.T) {
 		resp, err := client.CreateDirectory(ctx, &protocol.CreateDirectoryRequest{
 			Path: "/test-dir",
@@ -75,7 +75,7 @@ func TestDirectoryOperations(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 	})
-	
+
 	t.Run("CreateNestedDirectory", func(t *testing.T) {
 		resp, err := client.CreateDirectory(ctx, &protocol.CreateDirectoryRequest{
 			Path: "/test-dir/nested",
@@ -84,7 +84,7 @@ func TestDirectoryOperations(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 	})
-	
+
 	t.Run("ListDirectory", func(t *testing.T) {
 		resp, err := client.ListDirectory(ctx, &protocol.ListDirectoryRequest{
 			Path: "/test-dir",
@@ -94,7 +94,7 @@ func TestDirectoryOperations(t *testing.T) {
 		assert.Equal(t, "nested", resp.Entries[0].Name)
 		assert.True(t, resp.Entries[0].IsDirectory)
 	})
-	
+
 	t.Run("StatEntry", func(t *testing.T) {
 		resp, err := client.StatEntry(ctx, &protocol.StatEntryRequest{
 			Path: "/test-dir",
@@ -103,7 +103,7 @@ func TestDirectoryOperations(t *testing.T) {
 		assert.Equal(t, "/test-dir", resp.Entry.Path)
 		assert.True(t, resp.Entry.IsDirectory)
 	})
-	
+
 	t.Run("MoveEntry", func(t *testing.T) {
 		resp, err := client.MoveEntry(ctx, &protocol.MoveEntryRequest{
 			OldPath: "/test-dir/nested",
@@ -111,7 +111,7 @@ func TestDirectoryOperations(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
-		
+
 		// Verify move
 		listResp, err := client.ListDirectory(ctx, &protocol.ListDirectoryRequest{
 			Path: "/test-dir",
@@ -120,7 +120,7 @@ func TestDirectoryOperations(t *testing.T) {
 		assert.Len(t, listResp.Entries, 1)
 		assert.Equal(t, "renamed", listResp.Entries[0].Name)
 	})
-	
+
 	t.Run("DeleteDirectory", func(t *testing.T) {
 		resp, err := client.DeleteDirectory(ctx, &protocol.DeleteDirectoryRequest{
 			Path:      "/test-dir",
@@ -128,7 +128,7 @@ func TestDirectoryOperations(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
-		
+
 		// Verify deletion
 		statResp, err := client.StatEntry(ctx, &protocol.StatEntryRequest{
 			Path: "/test-dir",
@@ -142,14 +142,14 @@ func TestDirectoryOperations(t *testing.T) {
 func TestFileOperations(t *testing.T) {
 	coord := setupTestCoordinator(t, "test-coord", "localhost:18002")
 	defer coord.cleanup()
-	
+
 	conn, err := grpc.Dial(coord.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	ctx := context.Background()
-	
+
 	// Register storage nodes first (required for file operations)
 	for i := 1; i <= 2; i++ {
 		resp, err := client.RegisterNode(ctx, &protocol.RegisterNodeRequest{
@@ -161,9 +161,9 @@ func TestFileOperations(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 	}
-	
+
 	testData := []byte("Hello, Collective!")
-	
+
 	t.Run("CreateFile", func(t *testing.T) {
 		resp, err := client.CreateFile(ctx, &protocol.CreateFileRequest{
 			Path: "/test-file.txt",
@@ -172,7 +172,7 @@ func TestFileOperations(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 	})
-	
+
 	t.Run("WriteFile", func(t *testing.T) {
 		// Note: WriteFile will fail without actual storage nodes running
 		// This is expected behavior in unit tests
@@ -186,7 +186,7 @@ func TestFileOperations(t *testing.T) {
 			t.Logf("WriteFile failed as expected without storage nodes: %s", resp.Message)
 		}
 	})
-	
+
 	t.Run("ReadFile", func(t *testing.T) {
 		// Reading an empty file (no data written due to no nodes)
 		resp, err := client.ReadFile(ctx, &protocol.ReadFileRequest{
@@ -196,14 +196,14 @@ func TestFileOperations(t *testing.T) {
 		// File exists but has no data without actual storage
 		assert.True(t, resp.Success || !resp.Success, "ReadFile completes without error")
 	})
-	
+
 	t.Run("DeleteFile", func(t *testing.T) {
 		resp, err := client.DeleteFile(ctx, &protocol.DeleteFileRequest{
 			Path: "/test-file.txt",
 		})
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
-		
+
 		// Verify deletion
 		readResp, err := client.ReadFile(ctx, &protocol.ReadFileRequest{
 			Path: "/test-file.txt",
@@ -217,15 +217,15 @@ func TestFileOperations(t *testing.T) {
 func TestConcurrentFileWrites(t *testing.T) {
 	coord := setupTestCoordinator(t, "test-coord", "localhost:18003")
 	defer coord.cleanup()
-	
+
 	conn, err := grpc.Dial(coord.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	ctx := context.Background()
-	
-	// Register storage nodes first  
+
+	// Register storage nodes first
 	for i := 1; i <= 2; i++ {
 		resp, err := client.RegisterNode(ctx, &protocol.RegisterNodeRequest{
 			NodeId:        fmt.Sprintf("test-node-%d", i),
@@ -236,18 +236,18 @@ func TestConcurrentFileWrites(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 	}
-	
+
 	// Create test file
 	_, err = client.CreateFile(ctx, &protocol.CreateFileRequest{
 		Path: "/concurrent-test.txt",
 		Mode: 0644,
 	})
 	require.NoError(t, err)
-	
+
 	// Run concurrent writes
 	const numWriters = 10
 	results := make(chan *protocol.WriteFileResponse, numWriters)
-	
+
 	for i := 0; i < numWriters; i++ {
 		go func(id int) {
 			data := []byte(fmt.Sprintf("Writer %d data", id))
@@ -258,7 +258,7 @@ func TestConcurrentFileWrites(t *testing.T) {
 			results <- resp
 		}(i)
 	}
-	
+
 	// Collect results
 	successCount := 0
 	for i := 0; i < numWriters; i++ {
@@ -267,10 +267,10 @@ func TestConcurrentFileWrites(t *testing.T) {
 			successCount++
 		}
 	}
-	
+
 	// Without actual storage nodes, writes will fail but shouldn't crash
 	t.Logf("Concurrent writes completed, %d/%d succeeded (expected 0 without real nodes)", successCount, numWriters)
-	
+
 	// Verify file still exists
 	statResp, err := client.StatEntry(ctx, &protocol.StatEntryRequest{
 		Path: "/concurrent-test.txt",
@@ -283,14 +283,14 @@ func TestConcurrentFileWrites(t *testing.T) {
 func TestNodeRegistration(t *testing.T) {
 	coord := setupTestCoordinator(t, "test-coord", "localhost:18004")
 	defer coord.cleanup()
-	
+
 	conn, err := grpc.Dial(coord.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	ctx := context.Background()
-	
+
 	// Register a node via gRPC
 	resp, err := client.RegisterNode(ctx, &protocol.RegisterNodeRequest{
 		NodeId:        "test-node-1",
@@ -300,7 +300,7 @@ func TestNodeRegistration(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.True(t, resp.Success)
-	
+
 	// Verify registration by checking internal state
 	coord.nodeMutex.RLock()
 	nodes := make([]*types.StorageNode, 0, len(coord.nodes))
@@ -308,7 +308,7 @@ func TestNodeRegistration(t *testing.T) {
 		nodes = append(nodes, node)
 	}
 	coord.nodeMutex.RUnlock()
-	
+
 	assert.Len(t, nodes, 1)
 	assert.Equal(t, types.NodeID("test-node-1"), nodes[0].ID)
 	assert.True(t, nodes[0].IsHealthy)
@@ -318,14 +318,14 @@ func TestNodeRegistration(t *testing.T) {
 func TestChunkAllocation(t *testing.T) {
 	coord := setupTestCoordinator(t, "test-coord", "localhost:18005")
 	defer coord.cleanup()
-	
+
 	conn, err := grpc.Dial(coord.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	ctx := context.Background()
-	
+
 	// Register multiple nodes via gRPC
 	for i := 1; i <= 3; i++ {
 		resp, err := client.RegisterNode(ctx, &protocol.RegisterNodeRequest{
@@ -337,16 +337,16 @@ func TestChunkAllocation(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 	}
-	
+
 	// Test chunk allocation using internal method
 	chunks := []types.Chunk{
 		{ID: "chunk-1", Size: 1024},
 		{ID: "chunk-2", Size: 1024},
 	}
-	
+
 	allocations, err := coord.allocateChunksToNodes(chunks, 2) // replication factor 2
 	require.NoError(t, err)
-	
+
 	// Verify each chunk is allocated to nodes (replication factor)
 	assert.Len(t, allocations, 2)
 	for _, chunkID := range []types.ChunkID{"chunk-1", "chunk-2"} {
@@ -361,30 +361,30 @@ func BenchmarkWriteFile(b *testing.B) {
 	cfg := &config.CoordinatorConfig{
 		Address: "localhost:18006",
 	}
-	
+
 	coord := New(cfg, "bench-coord", logger)
 	go coord.Start()
 	defer coord.Stop()
-	
+
 	time.Sleep(100 * time.Millisecond)
-	
+
 	conn, _ := grpc.Dial("localhost:18006", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	ctx := context.Background()
-	
+
 	// Create test file
 	client.CreateFile(ctx, &protocol.CreateFileRequest{
 		Path: "/bench-test.txt",
 		Mode: 0644,
 	})
-	
+
 	testData := make([]byte, 1024*1024) // 1MB
-	
+
 	b.ResetTimer()
 	b.ReportAllocs()
-	
+
 	for i := 0; i < b.N; i++ {
 		client.WriteFile(ctx, &protocol.WriteFileRequest{
 			Path: fmt.Sprintf("/bench-test-%d.txt", i),

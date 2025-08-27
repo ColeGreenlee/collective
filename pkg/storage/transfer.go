@@ -90,10 +90,10 @@ func (ct *ChunkTransfer) ParallelTransfer(ctx context.Context, transfers map[typ
 
 	for chunkID, pair := range transfers {
 		sem <- struct{}{} // Acquire semaphore
-		
+
 		go func(cID types.ChunkID, p NodePair) {
 			defer func() { <-sem }() // Release semaphore
-			
+
 			if err := ct.TransferChunk(ctx, cID, p.Source, p.Target); err != nil {
 				errChan <- fmt.Errorf("transfer failed for chunk %s: %w", cID, err)
 			}

@@ -14,73 +14,73 @@ func TestParseDataSize(t *testing.T) {
 		{"0", 0, false},
 		{"1024", 1024, false},
 		{"1073741824", 1073741824, false},
-		
+
 		// Bytes with unit
 		{"0B", 0, false},
 		{"100B", 100, false},
 		{"1024B", 1024, false},
-		
+
 		// Kilobytes - decimal (1000-based)
 		{"1KB", 1000, false},
 		{"1.5KB", 1500, false},
 		{"10KB", 10000, false},
-		
+
 		// Kilobytes - binary (1024-based)
 		{"1K", 1024, false},
 		{"1KiB", 1024, false},
 		{"1.5KiB", 1536, false},
 		{"10KiB", 10240, false},
-		
+
 		// Megabytes - decimal
 		{"1MB", 1000000, false},
 		{"1.5MB", 1500000, false},
 		{"100MB", 100000000, false},
-		
+
 		// Megabytes - binary
 		{"1M", 1048576, false},
 		{"1MiB", 1048576, false},
 		{"1.5MiB", 1572864, false},
 		{"100MiB", 104857600, false},
-		
+
 		// Gigabytes - decimal
 		{"1GB", 1000000000, false},
 		{"1.5GB", 1500000000, false},
 		{"40GB", 40000000000, false},
-		
+
 		// Gigabytes - binary
 		{"1G", 1073741824, false},
 		{"1GiB", 1073741824, false},
 		{"1.5GiB", 1610612736, false},
 		{"40GiB", 42949672960, false},
-		
+
 		// Terabytes - decimal
 		{"1TB", 1000000000000, false},
 		{"1.485TB", 1485000000000, false},
-		
+
 		// Terabytes - binary
 		{"1T", 1099511627776, false},
 		{"1TiB", 1099511627776, false},
 		{"1.5TiB", 1649267441664, false},
-		
+
 		// Petabytes - decimal
 		{"1PB", 1000000000000000, false},
-		
+
 		// Petabytes - binary
 		{"1P", 1125899906842624, false},
 		{"1PiB", 1125899906842624, false},
-		
+
 		// Case insensitive
 		{"1gb", 1000000000, false},
 		{"1Gb", 1000000000, false},
 		{"1GB", 1000000000, false},
 		{"1gib", 1073741824, false},
 		{"1Gib", 1073741824, false},
-		
+
 		// With spaces
 		{"1 GB", 1000000000, false},
 		{"1.5 TB", 1500000000000, false},
 		{" 100 MB ", 100000000, false},
-		
+
 		// Error cases
 		{"", 0, true},
 		{"invalid", 0, true},
@@ -154,7 +154,7 @@ func TestParseDataSizeWithDefault(t *testing.T) {
 		t.Run(tt.input, func(t *testing.T) {
 			got := ParseDataSizeWithDefault(tt.input, defaultSize)
 			if got != tt.expected {
-				t.Errorf("ParseDataSizeWithDefault(%q, %v) = %v, want %v", 
+				t.Errorf("ParseDataSizeWithDefault(%q, %v) = %v, want %v",
 					tt.input, defaultSize, got, tt.expected)
 			}
 		})

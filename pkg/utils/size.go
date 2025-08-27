@@ -10,7 +10,7 @@ import (
 // ParseDataSize parses human-friendly data sizes like "1GB", "1.5TB", "512MB", "100KB"
 // and returns the size in bytes. It supports:
 // - B (bytes)
-// - KB/K (kilobytes) 
+// - KB/K (kilobytes)
 // - MB/M (megabytes)
 // - GB/G (gigabytes)
 // - TB/T (terabytes)
@@ -50,7 +50,7 @@ func ParseDataSize(sizeStr string) (int64, error) {
 
 	// Calculate size in bytes
 	bytes := int64(value * float64(multiplier))
-	
+
 	// Validate result
 	if bytes < 0 {
 		return 0, fmt.Errorf("size overflow or negative value")
@@ -73,15 +73,15 @@ func FormatDataSize(bytes int64) string {
 	units := []string{"B", "KB", "MB", "GB", "TB", "PB"}
 	exp := 0
 	div := int64(unit)
-	
+
 	for n := bytes / unit; n >= unit && exp < len(units)-2; n /= unit {
 		div *= unit
 		exp++
 	}
 	exp++ // Adjust for the initial division
-	
+
 	value := float64(bytes) / float64(div)
-	
+
 	// Format with appropriate decimal places
 	if value == float64(int64(value)) {
 		return fmt.Sprintf("%.0f %s", value, units[exp])
@@ -97,7 +97,7 @@ func getMultiplier(unit string) int64 {
 	// Bytes
 	case "B", "BYTE", "BYTES":
 		return 1
-		
+
 	// Decimal units (1000-based)
 	case "KB":
 		return 1000
@@ -109,7 +109,7 @@ func getMultiplier(unit string) int64 {
 		return 1000 * 1000 * 1000 * 1000
 	case "PB":
 		return 1000 * 1000 * 1000 * 1000 * 1000
-		
+
 	// Binary units (1024-based) - Standard IEC units
 	case "KIB", "K":
 		return 1024
@@ -121,7 +121,7 @@ func getMultiplier(unit string) int64 {
 		return 1024 * 1024 * 1024 * 1024
 	case "PIB", "P":
 		return 1024 * 1024 * 1024 * 1024 * 1024
-		
+
 	default:
 		return 0
 	}
@@ -142,11 +142,11 @@ func ParseDataSizeWithDefault(sizeStr string, defaultSize int64) int64 {
 	if sizeStr == "" {
 		return defaultSize
 	}
-	
+
 	size, err := ParseDataSize(sizeStr)
 	if err != nil {
 		return defaultSize
 	}
-	
+
 	return size
 }
