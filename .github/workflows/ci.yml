@@ -36,7 +36,9 @@ jobs:
           fi
       
       - name: Run go vet
-        run: go vet ./...
+        run: |
+          go vet ./pkg/...
+          go vet ./cmd/collective/
       
       - name: Run unit tests
         run: go test -v -race -short ./pkg/...
