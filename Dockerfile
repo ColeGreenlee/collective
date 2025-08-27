@@ -15,7 +15,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative \
            proto/*.proto && \
     mkdir -p pkg/protocol && \
     mv proto/*.pb.go pkg/protocol/ && \
-    go build -o collective ./cmd/collective
+    go build -o collective ./cmd/collective/
 
 # Runtime stage
 FROM alpine:latest
