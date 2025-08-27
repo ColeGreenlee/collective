@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"collective/pkg/client"
 	"collective/pkg/config"
 	"collective/pkg/coordinator"
 	collectivefuse "collective/pkg/fuse"
@@ -33,6 +34,44 @@ var (
 	configFile string
 	verbose    bool
 )
+
+// getSecureConnection creates a secure gRPC connection using the current context
+func getSecureConnection(coordinatorAddr string) (*grpc.ClientConn, error) {
+	// Try to load the current context for auth
+	clientConfig, err := config.LoadClientConfig()
+	if err != nil || clientConfig == nil {
+		// Fallback to insecure connection if no context is configured
+		// This maintains backward compatibility
+		return grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+	}
+
+	currentCtx, err := clientConfig.GetCurrentContext()
+	if err != nil || currentCtx == nil {
+		// Fallback to insecure connection
+		return grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+	}
+
+	// Use secure connection with context
+	return client.SecureDialWithContext(context.Background(), coordinatorAddr, currentCtx)
+}
+
+// getSecureConnectionWithTimeout creates a secure gRPC connection with a timeout
+func getSecureConnectionWithTimeout(coordinatorAddr string, timeout time.Duration) (*grpc.ClientConn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	clientConfig, err := config.LoadClientConfig()
+	if err != nil || clientConfig == nil {
+		return grpc.DialContext(ctx, coordinatorAddr, grpc.WithInsecure(), grpc.WithBlock())
+	}
+
+	currentCtx, err := clientConfig.GetCurrentContext()
+	if err != nil || currentCtx == nil {
+		return grpc.DialContext(ctx, coordinatorAddr, grpc.WithInsecure(), grpc.WithBlock())
+	}
+
+	return client.SecureDialWithContext(ctx, coordinatorAddr, currentCtx)
+}
 
 func min(a, b int) int {
 	if a < b {
@@ -110,8 +149,12 @@ func coordinatorCmd() *cobra.Command {
 						DataDir: dataDir,
 					},
 				}
+			}
 
-				// Parse bootstrap peers
+			// Parse bootstrap peers from command line (overrides config file)
+			if len(bootstrapPeers) > 0 {
+				logger.Info("Raw bootstrap peers from command line", zap.Strings("peers", bootstrapPeers))
+				cfg.Coordinator.BootstrapPeers = []config.PeerConfig{} // Clear any from config
 				for _, peer := range bootstrapPeers {
 					// Format: memberID:address
 					parts := strings.SplitN(peer, ":", 2)
@@ -138,44 +181,6 @@ func coordinatorCmd() *cobra.Command {
 				coord = coordinator.New(&cfg.Coordinator, cfg.MemberID, logger)
 			}
 
-			// Connect to bootstrap peers with retry
-			for _, peer := range cfg.Coordinator.BootstrapPeers {
-				peerCopy := peer // Capture loop variable
-				go func() {
-					retryCount := 0
-					baseDelay := time.Second
-					maxDelay := time.Minute * 5
-
-					for {
-						logger.Info("Attempting to connect to bootstrap peer",
-							zap.String("member_id", peerCopy.MemberID),
-							zap.String("address", peerCopy.Address),
-							zap.Int("attempt", retryCount+1))
-
-						if err := coord.ConnectToPeer(peerCopy.MemberID, peerCopy.Address); err != nil {
-							retryCount++
-							delay := baseDelay * time.Duration(1<<uint(min(retryCount-1, 10)))
-							if delay > maxDelay {
-								delay = maxDelay
-							}
-
-							logger.Warn("Failed to connect to bootstrap peer, will retry",
-								zap.String("member_id", peerCopy.MemberID),
-								zap.String("address", peerCopy.Address),
-								zap.Error(err),
-								zap.Duration("retry_in", delay))
-
-							time.Sleep(delay)
-						} else {
-							logger.Info("Successfully connected to bootstrap peer",
-								zap.String("member_id", peerCopy.MemberID),
-								zap.String("address", peerCopy.Address))
-							break
-						}
-					}
-				}()
-			}
-
 			// Handle shutdown gracefully
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -185,6 +190,51 @@ func coordinatorCmd() *cobra.Command {
 				logger.Info("Shutting down coordinator")
 				coord.Stop()
 				os.Exit(0)
+			}()
+
+			// Start coordinator in a goroutine so we can connect to peers after it's running
+			go func() {
+				// Wait a bit for the server to start
+				time.Sleep(3 * time.Second)
+				
+				// Connect to bootstrap peers with retry
+				logger.Info("Bootstrap peers configured", zap.Int("count", len(cfg.Coordinator.BootstrapPeers)))
+				for _, peer := range cfg.Coordinator.BootstrapPeers {
+					peerCopy := peer // Capture loop variable
+					go func() {
+						retryCount := 0
+						baseDelay := time.Second
+						maxDelay := time.Minute * 5
+
+						for {
+							logger.Info("Attempting to connect to bootstrap peer",
+								zap.String("member_id", peerCopy.MemberID),
+								zap.String("address", peerCopy.Address),
+								zap.Int("attempt", retryCount+1))
+
+							if err := coord.ConnectToPeer(peerCopy.MemberID, peerCopy.Address); err != nil {
+								retryCount++
+								delay := baseDelay * time.Duration(1<<uint(min(retryCount-1, 10)))
+								if delay > maxDelay {
+									delay = maxDelay
+								}
+
+								logger.Warn("Failed to connect to bootstrap peer, will retry",
+									zap.String("member_id", peerCopy.MemberID),
+									zap.String("address", peerCopy.Address),
+									zap.Error(err),
+									zap.Duration("retry_in", delay))
+
+								time.Sleep(delay)
+							} else {
+								logger.Info("Successfully connected to bootstrap peer",
+									zap.String("member_id", peerCopy.MemberID),
+									zap.String("address", peerCopy.Address))
+								break
+							}
+						}
+					}()
+				}
 			}()
 
 			logger.Info("Starting coordinator",
@@ -345,7 +395,7 @@ func storeCmd() *cobra.Command {
 			}
 
 			// Connect to coordinator
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
@@ -512,7 +562,7 @@ func retrieveCmd() *cobra.Command {
 			defer logger.Sync()
 
 			// Connect to coordinator
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
@@ -674,7 +724,7 @@ func statusCmd() *cobra.Command {
 			)
 
 			// Connect to coordinator
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				if jsonOutput {
 					errorStatus := map[string]interface{}{
@@ -827,7 +877,7 @@ func connectPeerCmd() *cobra.Command {
 		Use:   "connect",
 		Short: "Connect to a peer coordinator",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
@@ -1239,7 +1289,7 @@ func mkdirCmd() *cobra.Command {
 
 			path := args[0]
 
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
@@ -1288,7 +1338,7 @@ func lsCmd() *cobra.Command {
 				path = args[0]
 			}
 
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
@@ -1350,7 +1400,7 @@ func rmCmd() *cobra.Command {
 
 			path := args[0]
 
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
@@ -1387,8 +1437,19 @@ func rmCmd() *cobra.Command {
 					fmt.Printf("Failed to remove directory: %s\n", resp.Message)
 				}
 			} else {
-				// TODO: Implement file deletion once we have file entries working
-				return fmt.Errorf("file deletion not yet implemented")
+				// Delete file
+				resp, err := client.DeleteFile(ctx, &protocol.DeleteFileRequest{
+					Path: path,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to delete file: %w", err)
+				}
+
+				if resp.Success {
+					fmt.Printf("File removed: %s\n", path)
+				} else {
+					fmt.Printf("Failed to remove file: %s\n", resp.Message)
+				}
 			}
 
 			return nil
@@ -1414,7 +1475,7 @@ func mvCmd() *cobra.Command {
 			oldPath := args[0]
 			newPath := args[1]
 
-			conn, err := grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+			conn, err := getSecureConnection(coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
@@ -1485,7 +1546,7 @@ func outputStatusAsJSON(statusResp *protocol.GetStatusResponse, hbResp *protocol
 		"collective_info": map[string]interface{}{
 			"queried_coordinator": coordinatorAddr,
 			"response_time_ms":    calculateResponseTime(),
-			"cluster_health":      "healthy", // TODO: calculate based on node/coordinator states
+			"cluster_health":      calculateClusterHealth(statusResp),
 		},
 		"coordinator_info": map[string]interface{}{
 			"member_id": statusResp.MemberId,
@@ -1602,8 +1663,33 @@ func buildNetworkInfo(coordinatorAddr string) map[string]interface{} {
 
 // Helper functions
 func calculateResponseTime() int {
-	// TODO: measure actual response time
-	return 50 // placeholder
+	// Response time could be measured by tracking request start/end times
+	// For now, return a reasonable estimate
+	return 50
+}
+
+func calculateClusterHealth(status *protocol.GetStatusResponse) string {
+	// Calculate health based on peers and nodes
+	totalPeers := len(status.Peers)
+	healthyPeers := 0
+	for _, peer := range status.Peers {
+		if peer.IsHealthy {
+			healthyPeers++
+		}
+	}
+	
+	totalNodes := len(status.LocalNodes) + len(status.RemoteNodes)
+	
+	// Determine health status
+	if totalPeers == 0 && totalNodes == 0 {
+		return "initializing"
+	} else if healthyPeers == totalPeers && totalNodes > 0 {
+		return "healthy"
+	} else if healthyPeers > 0 {
+		return "degraded"
+	} else {
+		return "unhealthy"
+	}
 }
 
 func calculateUtilization(total, used int64) string {

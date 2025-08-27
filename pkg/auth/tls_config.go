@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 // TLSConfigBuilder builds TLS configurations for different components
@@ -192,6 +194,38 @@ func (b *TLSConfigBuilder) loadCAPool(path string) (*x509.CertPool, error) {
 		return nil, fmt.Errorf("failed to parse CA certificate")
 	}
 
+	return caPool, nil
+}
+
+// LoadMultiCAPool loads multiple CA certificates from a directory for peer trust
+func (b *TLSConfigBuilder) LoadMultiCAPool(certDir string) (*x509.CertPool, error) {
+	caPool := x509.NewCertPool()
+	
+	// Try to load all CA certificates from the directory
+	entries, err := os.ReadDir(certDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read cert directory: %w", err)
+	}
+	
+	loadedCount := 0
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), "-ca.crt") {
+			caPath := filepath.Join(certDir, entry.Name())
+			caCert, err := os.ReadFile(caPath)
+			if err != nil {
+				// Log but continue with other CAs
+				continue
+			}
+			if caPool.AppendCertsFromPEM(caCert) {
+				loadedCount++
+			}
+		}
+	}
+	
+	if loadedCount == 0 {
+		return nil, fmt.Errorf("no CA certificates found in directory")
+	}
+	
 	return caPool, nil
 }
 

@@ -68,16 +68,8 @@ cp ~/files/* /mnt/collective/documents/
 - 100% success rate for concurrent operations
 - Tested with 50+ coordinators and 500+ nodes
 
-### 🚧 In Development
-- Node heartbeats and automatic recovery
-- Erasure coding for storage efficiency
-- Cross-member chunk sharing
-
-### 📋 Roadmap
-- S3-compatible API
-- Web management UI
-- Persistent metadata storage
-- Coordinator redundancy
+### 🚧 Federation Architecture in Development
+See [FEDERATION_PLAN.md](FEDERATION_PLAN.md) for the comprehensive plan to transform Collective into a production-grade federated storage platform optimized for media server collectives and homelab clusters.
 
 ## Requirements
 

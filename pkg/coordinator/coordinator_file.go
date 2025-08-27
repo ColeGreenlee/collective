@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"collective/pkg/protocol"
@@ -406,17 +405,4 @@ func (c *Coordinator) DeleteFile(ctx context.Context, req *protocol.DeleteFileRe
 		Success: true,
 		Message: "File deleted successfully",
 	}, nil
-}
-
-// getFileLock returns the lock for a specific file, creating it if needed
-func (c *Coordinator) getFileLock(path string) *sync.RWMutex {
-	c.fileLockMutex.Lock()
-	defer c.fileLockMutex.Unlock()
-
-	lock, exists := c.fileLocks[path]
-	if !exists {
-		lock = &sync.RWMutex{}
-		c.fileLocks[path] = lock
-	}
-	return lock
 }

@@ -3,9 +3,11 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
+	"collective/pkg/client"
 	"collective/pkg/protocol"
 	"collective/pkg/storage"
 	"collective/pkg/types"
@@ -15,97 +17,189 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-// Connection pool for node connections
-var (
-	nodeConnections = make(map[string]*grpc.ClientConn)
-	nodeConnMutex   sync.RWMutex
+const (
+	// StreamBufferSize is the size of data to accumulate before processing
+	// Using 3MB chunks to stay safely under gRPC 4MB limit with metadata overhead
+	StreamBufferSize = 3 * 1024 * 1024 // 3MB (leaves room for protocol overhead)
+
+	// MaxConcurrentChunks limits parallel chunk operations to control memory
+	MaxConcurrentChunks = 10
 )
 
-// WriteFileStreamStandard handles streaming file uploads for large files (original implementation)
-func (c *Coordinator) WriteFileStreamStandard(stream protocol.Coordinator_WriteFileStreamServer) error {
+// WriteFileStream handles streaming file uploads with minimal memory usage
+func (c *Coordinator) WriteFileStream(stream protocol.Coordinator_WriteFileStreamServer) error {
 	var path string
-	var totalSize int64
-	var receivedData []byte
-	headerReceived := false
+	var fileID types.FileID
+	var headerReceived bool
+	var totalReceived int64
+	var chunkIndex int
 
-	// Receive all chunks
+	// Channel for streaming chunks to processor
+	chunkChan := make(chan types.Chunk, MaxConcurrentChunks)
+	errorChan := make(chan error, 1)
+	doneChan := make(chan []types.ChunkID, 1)
+
+	// Start chunk processor goroutine
+	go func() {
+		chunks, err := c.processStreamingChunks(stream.Context(), chunkChan, path)
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		doneChan <- chunks
+	}()
+
+	// Buffer for accumulating streaming data
+	buffer := make([]byte, 0, StreamBufferSize)
+
+	// Process incoming stream
 	for {
 		req, err := stream.Recv()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if err == io.EOF {
 				break
 			}
-			return err
+			close(chunkChan)
+			return fmt.Errorf("stream receive error: %w", err)
 		}
 
 		switch data := req.Data.(type) {
 		case *protocol.WriteFileStreamRequest_Header:
 			if headerReceived {
+				close(chunkChan)
 				return fmt.Errorf("header already received")
 			}
-			path = data.Header.Path
-			totalSize = int64(len(data.Header.Path)) // Size not available in header
-			headerReceived = true
-			receivedData = make([]byte, 0)
 
-			c.logger.Debug("Streaming file upload started",
+			path = data.Header.Path
+			fileID = types.FileID(path)
+			headerReceived = true
+
+			c.logger.Info("Streaming upload started",
 				zap.String("path", path),
-				zap.Int64("size", totalSize))
+				zap.String("method", "optimized"))
+
+			// Verify file exists
+			c.directoryMutex.RLock()
+			_, exists := c.fileEntries[path]
+			c.directoryMutex.RUnlock()
+
+			if !exists {
+				close(chunkChan)
+				return stream.SendAndClose(&protocol.WriteFileStreamResponse{
+					Success: false,
+					Message: "File does not exist",
+				})
+			}
 
 		case *protocol.WriteFileStreamRequest_ChunkData:
 			if !headerReceived {
+				close(chunkChan)
 				return fmt.Errorf("header not received")
 			}
-			receivedData = append(receivedData, data.ChunkData...)
+
+			// Accumulate data in buffer
+			buffer = append(buffer, data.ChunkData...)
+			totalReceived += int64(len(data.ChunkData))
+
+			// Process buffer when it reaches threshold
+			for len(buffer) >= StreamBufferSize {
+				// Extract a chunk worth of data
+				chunkData := buffer[:StreamBufferSize]
+				buffer = buffer[StreamBufferSize:]
+
+				// Create chunk
+				chunk := types.Chunk{
+					ID:     c.chunkManager.GenerateChunkID(fileID, chunkIndex),
+					FileID: fileID,
+					Index:  chunkIndex,
+					Data:   chunkData,
+				}
+
+				c.logger.Debug("Streaming chunk ready",
+					zap.String("chunk_id", string(chunk.ID)),
+					zap.Int("index", chunkIndex),
+					zap.Int("size", len(chunkData)),
+					zap.Int64("total_received", totalReceived))
+
+				// Send chunk for processing (blocks if channel full)
+				select {
+				case chunkChan <- chunk:
+					chunkIndex++
+				case err := <-errorChan:
+					close(chunkChan)
+					return fmt.Errorf("chunk processing error: %w", err)
+				case <-stream.Context().Done():
+					close(chunkChan)
+					return stream.Context().Err()
+				}
+			}
 		}
 	}
 
-	if !headerReceived {
-		return fmt.Errorf("no header received in stream")
+	// Process any remaining data in buffer
+	if len(buffer) > 0 {
+		chunk := types.Chunk{
+			ID:     c.chunkManager.GenerateChunkID(fileID, chunkIndex),
+			FileID: fileID,
+			Index:  chunkIndex,
+			Data:   buffer,
+		}
+
+		c.logger.Debug("Final chunk ready",
+			zap.String("chunk_id", string(chunk.ID)),
+			zap.Int("index", chunkIndex),
+			zap.Int("size", len(buffer)))
+
+		select {
+		case chunkChan <- chunk:
+		case err := <-errorChan:
+			close(chunkChan)
+			return fmt.Errorf("chunk processing error: %w", err)
+		}
 	}
 
-	c.logger.Info("Received streaming file upload",
-		zap.String("path", path),
-		zap.Int("received_bytes", len(receivedData)))
+	// Signal end of chunks
+	close(chunkChan)
 
-	// Now process the complete file data using parallel chunk operations
-	return c.writeFileWithParallelChunks(stream.Context(), path, receivedData, stream)
+	// Wait for processing to complete
+	select {
+	case storedChunks := <-doneChan:
+		// Update file metadata
+		c.updateFileMetadata(path, storedChunks, totalReceived)
+
+		c.logger.Info("Streaming upload completed",
+			zap.String("path", path),
+			zap.Int64("total_bytes", totalReceived),
+			zap.Int("chunks_stored", len(storedChunks)))
+
+		return stream.SendAndClose(&protocol.WriteFileStreamResponse{
+			Success:       true,
+			BytesWritten:  totalReceived,
+			Message:       fmt.Sprintf("Stored %d chunks using streaming", len(storedChunks)),
+			ChunksCreated: int32(len(storedChunks)),
+		})
+
+	case err := <-errorChan:
+		return stream.SendAndClose(&protocol.WriteFileStreamResponse{
+			Success: false,
+			Message: fmt.Sprintf("Processing error: %v", err),
+		})
+
+	case <-stream.Context().Done():
+		return stream.Context().Err()
+	}
 }
 
-// writeFileWithParallelChunks processes file data with parallel chunk storage
-func (c *Coordinator) writeFileWithParallelChunks(ctx context.Context, path string, data []byte, stream protocol.Coordinator_WriteFileStreamServer) error {
-	// Get file lock for this specific file
+// processStreamingChunks processes chunks as they arrive from the stream
+func (c *Coordinator) processStreamingChunks(ctx context.Context, chunkChan <-chan types.Chunk, path string) ([]types.ChunkID, error) {
+	// Get file lock
 	fileLock := c.getFileLock(path)
 	fileLock.Lock()
 	defer fileLock.Unlock()
 
-	// Quick check if file exists (minimal lock time)
-	c.directoryMutex.RLock()
-	_, exists := c.fileEntries[path]
-	if !exists {
-		c.directoryMutex.RUnlock()
-		return stream.SendAndClose(&protocol.WriteFileStreamResponse{
-			Success: false,
-			Message: "File does not exist",
-		})
-	}
-	c.directoryMutex.RUnlock()
-
-	// Create a file ID from the path
-	fileID := types.FileID(path)
-
-	// Split data into chunks (no locks held)
-	chunks, err := c.chunkManager.SplitIntoChunks(data, fileID)
-	if err != nil {
-		return stream.SendAndClose(&protocol.WriteFileStreamResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to split data into chunks: %v", err),
-		})
-	}
-
-	// Get healthy nodes for chunk storage
+	// Get healthy nodes
 	c.nodeMutex.RLock()
-	nodeList := []*types.StorageNode{}
+	var nodeList []*types.StorageNode
 	for _, node := range c.nodes {
 		if node.IsHealthy {
 			nodeList = append(nodeList, node)
@@ -114,36 +208,34 @@ func (c *Coordinator) writeFileWithParallelChunks(ctx context.Context, path stri
 	c.nodeMutex.RUnlock()
 
 	if len(nodeList) == 0 {
-		return stream.SendAndClose(&protocol.WriteFileStreamResponse{
-			Success: false,
-			Message: "No healthy storage nodes available",
-		})
+		return nil, fmt.Errorf("no healthy storage nodes available")
 	}
 
-	// Allocate chunks to nodes (no locks held)
+	// Initialize distribution strategy
 	distStrategy := storage.NewDistributionStrategy(2)
-	allocations, err := distStrategy.AllocateChunks(chunks, nodeList)
-	if err != nil {
-		return stream.SendAndClose(&protocol.WriteFileStreamResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to allocate chunks: %v", err),
-		})
-	}
 
-	// Store chunks in parallel but maintain order
-	storedChunks := make([]types.ChunkID, len(chunks))
-	successFlags := make([]bool, len(chunks))
-	errorChan := make(chan error, len(chunks)*2) // replication factor of 2
-
+	// Process chunks with controlled concurrency
+	var storedChunks []types.ChunkID
 	var wg sync.WaitGroup
-	for idx, chunk := range chunks {
+	semaphore := make(chan struct{}, MaxConcurrentChunks)
+
+	for chunk := range chunkChan {
+		// Allocate nodes for this chunk
+		allocations, err := distStrategy.AllocateChunks([]types.Chunk{chunk}, nodeList)
+		if err != nil {
+			return nil, fmt.Errorf("failed to allocate chunk: %w", err)
+		}
+
+		// Acquire semaphore slot
+		semaphore <- struct{}{}
 		wg.Add(1)
-		go func(index int, ch types.Chunk) {
+
+		// Store chunk asynchronously
+		go func(ch types.Chunk, nodeIDs []types.NodeID) {
 			defer wg.Done()
+			defer func() { <-semaphore }() // Release slot
 
-			nodeIDs := allocations[ch.ID]
 			successCount := 0
-
 			for _, nodeID := range nodeIDs {
 				c.nodeMutex.RLock()
 				node := c.nodes[nodeID]
@@ -153,86 +245,65 @@ func (c *Coordinator) writeFileWithParallelChunks(ctx context.Context, path stri
 					continue
 				}
 
-				// Store chunk on node
 				if err := c.storeChunkOnNode(ctx, node, ch); err != nil {
-					errorChan <- fmt.Errorf("failed to store chunk %s on node %s: %w", ch.ID, nodeID, err)
+					c.logger.Warn("Failed to store chunk on node",
+						zap.String("node", string(nodeID)),
+						zap.String("chunk", string(ch.ID)),
+						zap.Error(err))
 					continue
 				}
 
 				successCount++
-				c.logger.Debug("Stored chunk on node",
-					zap.String("node", string(nodeID)),
-					zap.String("chunk", string(ch.ID)))
 			}
 
 			if successCount > 0 {
-				storedChunks[index] = ch.ID
-				successFlags[index] = true
-			} else {
-				errorChan <- fmt.Errorf("failed to store chunk %s on any node", ch.ID)
+				// Update allocations
+				c.chunkMutex.Lock()
+				c.chunkAllocations[ch.ID] = nodeIDs
+				c.chunkMutex.Unlock()
+
+				c.logger.Debug("Chunk stored",
+					zap.String("chunk", string(ch.ID)),
+					zap.Int("replicas", successCount))
 			}
-		}(idx, chunk)
+		}(chunk, allocations[chunk.ID])
+
+		// Track stored chunk
+		storedChunks = append(storedChunks, chunk.ID)
 	}
 
-	// Wait for all goroutines to complete
+	// Wait for all chunks to be stored
 	wg.Wait()
-	close(errorChan)
 
-	// Collect only successful chunks in order
-	var finalStoredChunks []types.ChunkID
-	for i, success := range successFlags {
-		if success {
-			finalStoredChunks = append(finalStoredChunks, storedChunks[i])
-		}
-	}
-
-	// Check for errors
-	var errs []error
-	for err := range errorChan {
-		errs = append(errs, err)
-	}
-
-	if len(finalStoredChunks) == 0 {
-		return stream.SendAndClose(&protocol.WriteFileStreamResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to store any chunks: %v", errs),
-		})
-	}
-
-	// Update chunk allocations (merge, don't overwrite)
+	// Update chunk mappings
 	c.chunkMutex.Lock()
-	for chunkID, nodeIDs := range allocations {
-		c.chunkAllocations[chunkID] = nodeIDs
-	}
-	c.fileChunks[path] = finalStoredChunks
+	c.fileChunks[path] = storedChunks
 	c.chunkMutex.Unlock()
 
-	// Update file metadata (brief lock)
-	c.directoryMutex.Lock()
-	if fileEntry, exists := c.fileEntries[path]; exists {
-		fileEntry.Size = int64(len(data))
-		fileEntry.Modified = time.Now()
-		fileEntry.ChunkIDs = finalStoredChunks
-	}
-	c.directoryMutex.Unlock()
-
-	c.logger.Info("File written with parallel chunks",
-		zap.String("path", path),
-		zap.Int("chunks_created", len(chunks)),
-		zap.Int("chunks_stored", len(finalStoredChunks)),
-		zap.Int64("size", int64(len(data))))
-
-	return stream.SendAndClose(&protocol.WriteFileStreamResponse{
-		Success:       true,
-		BytesWritten:  int64(len(data)),
-		Message:       fmt.Sprintf("Data written successfully in %d chunks", len(finalStoredChunks)),
-		ChunksCreated: int32(len(finalStoredChunks)),
-	})
+	return storedChunks, nil
 }
 
-// ReadFileStreamStandard handles streaming file downloads for large files (original implementation)
-func (c *Coordinator) ReadFileStreamStandard(req *protocol.ReadFileStreamRequest, stream protocol.Coordinator_ReadFileStreamServer) error {
-	c.logger.Debug("ReadFileStream request", zap.String("path", req.Path))
+// updateFileMetadata updates file entry after streaming upload
+func (c *Coordinator) updateFileMetadata(path string, chunkIDs []types.ChunkID, size int64) {
+	c.directoryMutex.Lock()
+	defer c.directoryMutex.Unlock()
+
+	if entry, exists := c.fileEntries[path]; exists {
+		entry.Size = size
+		entry.Modified = time.Now()
+		entry.ChunkIDs = chunkIDs
+
+		c.logger.Debug("Updated file metadata",
+			zap.String("path", path),
+			zap.Int64("size", size),
+			zap.Int("chunks", len(chunkIDs)))
+	}
+}
+
+// ReadFileStream handles streaming file downloads with minimal memory usage
+func (c *Coordinator) ReadFileStream(req *protocol.ReadFileStreamRequest, stream protocol.Coordinator_ReadFileStreamServer) error {
+	c.logger.Debug("Optimized streaming read",
+		zap.String("path", req.Path))
 
 	// Get file metadata
 	c.directoryMutex.RLock()
@@ -246,37 +317,32 @@ func (c *Coordinator) ReadFileStreamStandard(req *protocol.ReadFileStreamRequest
 	c.directoryMutex.RUnlock()
 
 	// Send header
-	header := &protocol.ReadFileStreamResponse{
+	if err := stream.Send(&protocol.ReadFileStreamResponse{
 		Data: &protocol.ReadFileStreamResponse_Header{
-			Header: &protocol.ReadFileStreamHeader{
-				// Header fields are minimal in current protocol
-			},
+			Header: &protocol.ReadFileStreamHeader{},
 		},
+	}); err != nil {
+		return fmt.Errorf("failed to send header: %w", err)
 	}
 
-	if err := stream.Send(header); err != nil {
-		return err
-	}
-
-	// If file is empty, we're done
 	if len(chunkIDs) == 0 {
-		c.logger.Debug("File is empty, no chunks to send", zap.String("path", req.Path))
-		return nil
+		return nil // Empty file
 	}
 
-	// Get chunk allocations
+	// Stream chunks with controlled concurrency
 	c.chunkMutex.RLock()
 	allocations := c.chunkAllocations
 	c.chunkMutex.RUnlock()
 
-	// Stream chunks in order
+	totalSent := int64(0)
+
 	for i, chunkID := range chunkIDs {
 		nodeIDs := allocations[chunkID]
 		if len(nodeIDs) == 0 {
-			return fmt.Errorf("no nodes found for chunk %s", chunkID)
+			return fmt.Errorf("no nodes for chunk %s", chunkID)
 		}
 
-		// Try to retrieve from first available node
+		// Retrieve chunk from first available node
 		var chunkData []byte
 		var retrieved bool
 
@@ -291,7 +357,7 @@ func (c *Coordinator) ReadFileStreamStandard(req *protocol.ReadFileStreamRequest
 
 			data, err := c.retrieveChunkFromNode(stream.Context(), node, chunkID)
 			if err != nil {
-				c.logger.Warn("Failed to retrieve chunk from node",
+				c.logger.Warn("Failed to retrieve chunk",
 					zap.String("node", string(nodeID)),
 					zap.String("chunk", string(chunkID)),
 					zap.Error(err))
@@ -304,35 +370,43 @@ func (c *Coordinator) ReadFileStreamStandard(req *protocol.ReadFileStreamRequest
 		}
 
 		if !retrieved {
-			return fmt.Errorf("failed to retrieve chunk %s from any node", chunkID)
+			return fmt.Errorf("failed to retrieve chunk %s", chunkID)
 		}
 
-		// Send chunk data
-		chunkResp := &protocol.ReadFileStreamResponse{
+		// Send chunk
+		if err := stream.Send(&protocol.ReadFileStreamResponse{
 			Data: &protocol.ReadFileStreamResponse_ChunkData{
 				ChunkData: chunkData,
 			},
+		}); err != nil {
+			return fmt.Errorf("failed to send chunk %d: %w", i, err)
 		}
 
-		if err := stream.Send(chunkResp); err != nil {
-			return err
-		}
+		totalSent += int64(len(chunkData))
 
 		c.logger.Debug("Streamed chunk",
 			zap.String("path", req.Path),
 			zap.Int("chunk_index", i),
-			zap.Int("chunk_size", len(chunkData)))
+			zap.Int("chunk_size", len(chunkData)),
+			zap.Int64("total_sent", totalSent),
+			zap.Int64("file_size", fileSize))
 	}
 
-	c.logger.Info("File streamed successfully",
+	c.logger.Info("File streamed",
 		zap.String("path", req.Path),
-		zap.Int("chunks_sent", len(chunkIDs)),
-		zap.Int64("total_size", fileSize))
+		zap.Int("chunks", len(chunkIDs)),
+		zap.Int64("bytes", totalSent))
 
 	return nil
 }
 
-// retrieveChunkFromNode retrieves a single chunk from a node
+// Connection pool for node connections
+var (
+	nodeConnections = make(map[string]*grpc.ClientConn)
+	nodeConnMutex   sync.RWMutex
+)
+
+// retrieveChunkFromNode retrieves a chunk from a specific storage node
 func (c *Coordinator) retrieveChunkFromNode(ctx context.Context, node *types.StorageNode, chunkID types.ChunkID) ([]byte, error) {
 	conn, err := c.getNodeConnection(node.Address)
 	if err != nil {
@@ -378,12 +452,21 @@ func (c *Coordinator) getNodeConnection(address string) (*grpc.ClientConn, error
 		return conn, nil
 	}
 
-	// Create new connection
-	newConn, err := grpc.Dial(address, grpc.WithInsecure())
+	// Create new secure connection
+	// Note: This uses the coordinator's auth config if available
+	var newConn *grpc.ClientConn
+	var err error
+	if c.authConfig != nil {
+		newConn, err = client.CreateAuthenticatedConnection(context.Background(), address, c.authConfig)
+	} else {
+		// Fallback for nodes without auth configured
+		newConn, err = grpc.Dial(address, grpc.WithInsecure())
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to dial node: %w", err)
 	}
 
+	// Store in pool
 	nodeConnections[address] = newConn
 	return newConn, nil
 }

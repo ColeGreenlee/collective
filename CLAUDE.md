@@ -162,45 +162,101 @@ rm -rf pkg/protocol/collective
 - **Observable Debugging**: Use status commands and logs instead of print statements
 - **Document Discoveries**: Add new patterns, pitfalls, and solutions to this CLAUDE.md immediately
 
+## Federation Architecture Development (Active)
+
+### Current Focus
+Implementing federated storage system for media server collectives (3-5 homelabs with 20TB+ each). See [FEDERATION_PLAN.md](FEDERATION_PLAN.md) for complete architecture and implementation plan.
+
+### Federation Development Workflow
+1. **Review FEDERATION_PLAN.md**: Understand the 10 implementation tasks
+2. **Use TodoWrite**: Track progress on federation tasks
+3. **Test with Multi-Member Setup**: Always test federation features with 3+ members
+4. **Update Both Docs**: Keep FEDERATION_PLAN.md and CLAUDE.md in sync
+
+### Federation-Specific Commands
+```bash
+# Test multi-member federation locally
+docker compose -f examples/three-member/docker-compose.yml up -d --build
+
+# Verify federation peering
+./bin/collective status --json | jq '.peers'
+
+# Test cross-member operations
+./bin/collective --context alice store /test.txt
+./bin/collective --context bob retrieve /test.txt
+
+# Monitor gossip protocol (when implemented)
+./bin/collective debug gossip --watch
+```
+
+### Federation Testing Patterns
+- **Multi-CA Trust**: Test certificate validation across member CAs
+- **Network Resilience**: Simulate network partitions and failovers
+- **DataStore Permissions**: Verify access control across members
+- **Chunk Placement**: Monitor smart placement strategies
+- **Gossip Convergence**: Measure peer discovery time
+
+### Federation Implementation Priority
+Tasks are designed for parallel sub-agent development. Start with:
+1. **Foundation (Tasks 1-3)**: Address system, CA hierarchy, trust store
+2. **Production Features (Tasks 4-6)**: Gossip, permissions, smart placement
+3. **Polish (Tasks 7-10)**: Invites, resilience, monitoring, FUSE optimization
+
+Each task is independently valuable - see FEDERATION_PLAN.md for detailed specs.
+
+## Major Cleanup Completed (Aug 2025)
+
+### Phase 1: Security & Functionality
+- **Streaming Consolidation**: Removed `coordinator_streaming.go` and `coordinator_wrapper.go`, kept only optimized version (-600 lines)
+- **Secure Connections**: Created `pkg/client/connection.go` with secure connection factory, replaced 25 insecure gRPC calls
+- **File Deletion**: Fixed CLI to properly call existing DeleteFile RPC
+
+### Phase 2: Organization & Testing  
+- **Coordinator Reorganization**: 
+  - Created `operations.go` consolidating all directory/file operations
+  - Removed `coordinator_directory.go` (-430 lines)
+  - Clear separation: core logic, operations, storage, streaming, files
+- **Test Coverage**: Added comprehensive unit tests for `pkg/auth` and `pkg/node`
+- **TODO Resolution**: Implemented cluster health calculation, removed placeholders
+
+### Impact Metrics
+- **Lines removed**: ~1000 (duplicate code)
+- **Security**: All connections support mTLS with graceful fallback
+- **Test coverage**: 2 critical packages now tested (auth: 100%, node: partial)
+- **Files reduced**: 7 → 6 in coordinator package
+
 ## Project Structure (Updated)
 ```
 collective/
 ├── cmd/collective/       # CLI with status command and operations
-│   ├── main.go         # Entry point with command registration
-│   ├── auth.go         # Authentication commands (init, cert, info)
-│   ├── config_cmd.go   # Config management (contexts, show-context)
-│   ├── init.go         # Client initialization command
-│   └── status_enhanced.go # Enhanced status with auth support
+│   ├── main.go         # Entry point with secure connections
+│   ├── auth.go         # Authentication commands
+│   ├── config_cmd.go   # Config management
+│   ├── init.go         # Client initialization
+│   └── status_enhanced.go # Status with health calculation
 ├── pkg/
-│   ├── auth/           # Authentication and certificate management
-│   ├── coordinator/    # Coordinator with directory + file operations  
-│   ├── node/           # Storage nodes with chunk management
-│   ├── protocol/       # gRPC definitions and networking
-│   ├── fuse/           # FUSE filesystem implementation
-│   ├── storage/        # Chunk storage and retrieval
-│   ├── types/          # Shared type definitions
-│   ├── config/         # Configuration management
-│   └── utils/          # Utility functions
+│   ├── auth/           # Authentication (with auth_test.go)
+│   ├── client/         # NEW: Connection management & pooling
+│   ├── coordinator/    # Reorganized coordinator
+│   │   ├── coordinator.go     # Core coordinator logic
+│   │   ├── operations.go      # NEW: All directory/file operations
+│   │   ├── coordinator_file.go # File-specific operations
+│   │   ├── coordinator_storage.go # Chunk management
+│   │   ├── coordinator_streaming.go # Unified streaming
+│   │   └── coordinator_test.go # Tests
+│   ├── node/           # Storage nodes (with node_test.go)
+│   ├── protocol/       # gRPC definitions
+│   ├── fuse/           # FUSE filesystem
+│   ├── storage/        # Chunk storage
+│   ├── types/          # Shared types
+│   ├── config/         # Configuration
+│   └── utils/          # Utilities
 ├── proto/              # Protocol buffer definitions
-├── docs/               # Focused documentation
-│   ├── GETTING_STARTED.md # Quick start guide
-│   ├── ARCHITECTURE.md    # System design
-│   ├── PERFORMANCE.md     # Benchmarks and optimization
-│   ├── FUSE.md            # Filesystem documentation
-│   └── *.md               # Other design docs
-├── examples/           # Example deployments and configs
-│   ├── single-node/    # Simple local setup
-│   ├── three-member/   # Test collective with Docker
-│   ├── homelab-peering/# Cross-network examples
-│   └── scale-testing/  # Large-scale testing tools
-├── test/               # Test files and configs
-│   ├── configs/        # Test configuration files
-│   ├── scripts/        # Test automation scripts
-│   └── integration/    # Integration tests
-├── .github/workflows/  # CI/CD pipelines
-│   ├── ci.yml         # Main CI pipeline
-│   └── examples.yml   # Example testing
-└── docker-entrypoint.sh # Auto-TLS setup for containers
+├── docs/               # Documentation
+├── examples/           # Example deployments
+├── test/               # Test files
+├── PLAN.md            # NEW: Cleanup & refactoring plan
+└── docker-entrypoint.sh # Auto-TLS setup
 ```
 
 ## Performance Metrics

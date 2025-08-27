@@ -11,7 +11,7 @@ services:
       - COLLECTIVE_COMPONENT_TYPE=coordinator
       - COLLECTIVE_COMPONENT_ID=alice-coordinator
       - COLLECTIVE_AUTO_TLS=true
-    command: ["coordinator", "--member-id", "alice", "--address", ":8001"]
+    command: ["coordinator", "--member-id", "alice", "--address", ":8001", "--bootstrap-peers", "bob:bob-coordinator:8001,carol:carol-coordinator:8001"]
     ports:
       - "8001:8001"
     volumes:
@@ -35,7 +35,7 @@ services:
       - COLLECTIVE_COMPONENT_TYPE=coordinator
       - COLLECTIVE_COMPONENT_ID=bob-coordinator
       - COLLECTIVE_AUTO_TLS=true
-    command: ["coordinator", "--member-id", "bob", "--address", ":8001"]
+    command: ["coordinator", "--member-id", "bob", "--address", ":8001", "--bootstrap-peers", "alice:alice-coordinator:8001,carol:carol-coordinator:8001"]
     ports:
       - "8002:8001"
     volumes:
@@ -59,7 +59,7 @@ services:
       - COLLECTIVE_COMPONENT_TYPE=coordinator
       - COLLECTIVE_COMPONENT_ID=carol-coordinator
       - COLLECTIVE_AUTO_TLS=true
-    command: ["coordinator", "--member-id", "carol", "--address", ":8001"]
+    command: ["coordinator", "--member-id", "carol", "--address", ":8001", "--bootstrap-peers", "alice:alice-coordinator:8001,bob:bob-coordinator:8001"]
     ports:
       - "8003:8001"
     volumes:

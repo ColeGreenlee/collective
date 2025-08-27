@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -49,9 +49,6 @@ type Coordinator struct {
 	// Per-file locks for concurrent write protection
 	fileLocks     map[string]*sync.RWMutex
 	fileLockMutex sync.Mutex
-
-	// Performance optimization flags
-	useOptimizedStreaming bool
 
 	// Chunk management
 	chunkManager     *storage.ChunkManager
@@ -115,7 +112,6 @@ func NewWithAuth(cfg *config.CoordinatorConfig, memberID string, logger *zap.Log
 		chunkAllocations:      make(map[types.ChunkID][]types.NodeID),
 		fileChunks:            make(map[string][]types.ChunkID),
 		writeBuffers:          make(map[string]*WriteBuffer),
-		useOptimizedStreaming: true, // Enable optimized streaming by default
 		ctx:                   ctx,
 		cancel:                cancel,
 	}
@@ -205,7 +201,30 @@ func (c *Coordinator) ConnectToPeer(memberID, address string) error {
 	}
 	c.peerMutex.RUnlock()
 
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	// Use secure connection if auth is configured
+	var dialOpts []grpc.DialOption
+	if c.authConfig != nil && c.authConfig.Enabled {
+		tlsBuilder, err := auth.NewTLSConfigBuilder(c.authConfig)
+		if err == nil {
+			// For peer connections, load all member CAs for trust
+			tlsConfig, err := tlsBuilder.BuildClientConfig()
+			if err == nil && tlsConfig != nil {
+				// Try to load multi-CA pool for peer connections
+				certDir := filepath.Dir(c.authConfig.CAPath)
+				if multiCAPool, err := tlsBuilder.LoadMultiCAPool(certDir); err == nil {
+					tlsConfig.RootCAs = multiCAPool
+				}
+				dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+			}
+		}
+	}
+	
+	// Fallback to insecure if TLS not configured
+	if len(dialOpts) == 0 {
+		dialOpts = append(dialOpts, grpc.WithInsecure())
+	}
+	
+	conn, err := grpc.Dial(address, dialOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to peer %s at %s: %w", memberID, address, err)
 	}
@@ -285,7 +304,29 @@ func (c *Coordinator) PeerConnect(ctx context.Context, req *protocol.PeerConnect
 			existingPeer.Address = req.Address
 		}
 	} else {
-		conn, err := grpc.Dial(req.Address, grpc.WithInsecure())
+		// Use secure connection if auth is configured
+		var dialOpts []grpc.DialOption
+		if c.authConfig != nil && c.authConfig.Enabled {
+			tlsBuilder, err := auth.NewTLSConfigBuilder(c.authConfig)
+			if err == nil {
+				tlsConfig, err := tlsBuilder.BuildClientConfig()
+				if err == nil && tlsConfig != nil {
+					// For peer connections, load all member CAs for trust
+					certDir := filepath.Dir(c.authConfig.CAPath)
+					if multiCAPool, err := tlsBuilder.LoadMultiCAPool(certDir); err == nil {
+						tlsConfig.RootCAs = multiCAPool
+					}
+					dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+				}
+			}
+		}
+		
+		// Fallback to insecure if TLS not configured
+		if len(dialOpts) == 0 {
+			dialOpts = append(dialOpts, grpc.WithInsecure())
+		}
+		
+		conn, err := grpc.Dial(req.Address, dialOpts...)
 		if err != nil {
 			return &protocol.PeerConnectResponse{Accepted: false}, nil
 		}
@@ -1089,22 +1130,5 @@ func (c *Coordinator) checkNodeHealth() {
 	}
 }
 
-// initializeRootDirectory creates the root directory entry
-func (c *Coordinator) initializeRootDirectory() {
-	c.directoryMutex.Lock()
-	defer c.directoryMutex.Unlock()
-
-	if _, exists := c.directories["/"]; !exists {
-		c.directories["/"] = &types.Directory{
-			Path:     "/",
-			Parent:   "",
-			Children: []string{},
-			Mode:     os.FileMode(0755),
-			Modified: time.Now(),
-			Owner:    c.memberID,
-		}
-		c.logger.Info("Initialized root directory")
-	}
-}
 
 // Directory Operations
