@@ -16,7 +16,7 @@ import (
 
 func TestThreeMemberCollective(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	ctx := context.Background()
+	_ = context.Background() // Will be used for future context-aware operations
 
 	// Setup three coordinators
 	aliceCoord := setupCoordinator("alice", ":8001", logger)
