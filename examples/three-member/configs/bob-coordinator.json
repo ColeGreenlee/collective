@@ -1,0 +1,18 @@
+{
+  "mode": "coordinator",
+  "member_id": "bob",
+  "coordinator": {
+    "address": ":8002",
+    "bootstrap_peers": [
+      {
+        "member_id": "alice",
+        "address": "alice-coordinator:8001"
+      },
+      {
+        "member_id": "carol",
+        "address": "carol-coordinator:8003"
+      }
+    ],
+    "data_dir": "/data"
+  }
+}

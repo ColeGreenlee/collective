@@ -29,12 +29,14 @@ type StorageNode struct {
 }
 
 type Chunk struct {
-	ID     ChunkID
-	FileID FileID
-	Index  int
-	Size   int64
-	Hash   string
-	Data   []byte
+	ID           ChunkID
+	FileID       FileID
+	Index        int
+	Size         int64 // Size of actual data (possibly compressed)
+	OriginalSize int64 // Original uncompressed size
+	Hash         string
+	Data         []byte
+	Compressed   bool // Whether data is compressed
 }
 
 type File struct {

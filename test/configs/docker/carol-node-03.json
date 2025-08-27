@@ -1,0 +1,11 @@
+{
+  "mode": "node",
+  "member_id": "carol",
+  "node": {
+    "node_id": "carol-node-03",
+    "address": "carol-node-03:7013",
+    "coordinator_address": "carol-coordinator:8003",
+    "storage_capacity": 1073741824,
+    "data_dir": "/data"
+  }
+}

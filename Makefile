@@ -15,15 +15,30 @@ proto:
 
 # Build the binary
 build:
-	$(GO) build -o bin/$(BINARY_NAME) cmd/collective/main.go
+	$(GO) build -o bin/$(BINARY_NAME) ./cmd/collective/
 
-# Run tests
+# Run all tests
 test:
-	$(GO) test -v ./...
+	$(GO) test -v -race -coverprofile=coverage.out ./...
+
+# Run unit tests only
+test-unit:
+	$(GO) test -v -short -race ./pkg/...
 
 # Run integration tests
-integration-test:
-	$(GO) test -v ./test/...
+test-integration:
+	$(GO) test -v -race ./test/...
+
+# Run tests with coverage
+test-coverage:
+	$(GO) test -v -race -coverprofile=coverage.out ./...
+	$(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+	@$(GO) tool cover -func=coverage.out | tail -1
+
+# Run benchmarks
+test-benchmark:
+	$(GO) test -bench=. -benchmem ./pkg/...
 
 # Local development setup
 run-local: build
@@ -31,45 +46,45 @@ run-local: build
 	@echo "Run each command in a separate terminal:"
 	@echo ""
 	@echo "# Alice's coordinator:"
-	@echo "./bin/$(BINARY_NAME) coordinator -c data/configs/alice-coordinator.json"
+	@echo "./bin/$(BINARY_NAME) coordinator -c test/configs/alice-coordinator.json"
 	@echo ""
 	@echo "# Alice's nodes:"
-	@echo "./bin/$(BINARY_NAME) node -c data/configs/alice-node-01.json"
-	@echo "./bin/$(BINARY_NAME) node -c data/configs/alice-node-02.json"
+	@echo "./bin/$(BINARY_NAME) node -c test/configs/alice-node-01.json"
+	@echo "./bin/$(BINARY_NAME) node -c test/configs/alice-node-02.json"
 	@echo ""
 	@echo "# Bob's coordinator:"
-	@echo "./bin/$(BINARY_NAME) coordinator -c data/configs/bob-coordinator.json"
+	@echo "./bin/$(BINARY_NAME) coordinator -c test/configs/bob-coordinator.json"
 	@echo ""
 	@echo "# Bob's nodes:"
-	@echo "./bin/$(BINARY_NAME) node -c data/configs/bob-node-01.json"
-	@echo "./bin/$(BINARY_NAME) node -c data/configs/bob-node-02.json"
+	@echo "./bin/$(BINARY_NAME) node -c test/configs/bob-node-01.json"
+	@echo "./bin/$(BINARY_NAME) node -c test/configs/bob-node-02.json"
 	@echo ""
 	@echo "# Carol's coordinator:"
-	@echo "./bin/$(BINARY_NAME) coordinator -c data/configs/carol-coordinator.json"
+	@echo "./bin/$(BINARY_NAME) coordinator -c test/configs/carol-coordinator.json"
 	@echo ""
 	@echo "# Carol's nodes:"
-	@echo "./bin/$(BINARY_NAME) node -c data/configs/carol-node-01.json"
-	@echo "./bin/$(BINARY_NAME) node -c data/configs/carol-node-02.json"
+	@echo "./bin/$(BINARY_NAME) node -c test/configs/carol-node-01.json"
+	@echo "./bin/$(BINARY_NAME) node -c test/configs/carol-node-02.json"
 
 # Docker commands
 docker-build:
-	docker-compose build
+	docker-compose -f examples/three-member/docker-compose.yml build
 
 docker-up:
-	docker-compose up -d
+	docker-compose -f examples/three-member/docker-compose.yml up -d
 
 docker-down:
-	docker-compose down
+	docker-compose -f examples/three-member/docker-compose.yml down
 
 docker-logs:
-	docker-compose logs -f
+	docker-compose -f examples/three-member/docker-compose.yml logs -f
 
 # Clean build artifacts
 clean:
 	rm -rf bin/
 	rm -rf data/
 	rm -rf test-data/
-	docker-compose down -v
+	docker-compose -f examples/three-member/docker-compose.yml down -v 2>/dev/null || true
 
 # Install dependencies
 deps:

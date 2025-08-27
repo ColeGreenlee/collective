@@ -1,0 +1,280 @@
+version: '3.8'
+
+services:
+  # Alice's coordinator
+  alice-coordinator:
+    build: ../.../..
+    container_name: alice-coordinator
+    hostname: alice-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=alice-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+    command: ["coordinator", "--member-id", "alice", "--address", ":8001"]
+    ports:
+      - "8001:8001"
+    volumes:
+      - certs:/collective/certs
+      - alice-coord-data:/data
+    networks:
+      - collective-net
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Bob's coordinator
+  bob-coordinator:
+    build: ../.../..
+    container_name: bob-coordinator
+    hostname: bob-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=bob-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+    command: ["coordinator", "--member-id", "bob", "--address", ":8001"]
+    ports:
+      - "8002:8001"
+    volumes:
+      - certs:/collective/certs
+      - bob-coord-data:/data
+    networks:
+      - collective-net
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Carol's coordinator
+  carol-coordinator:
+    build: ../..
+    container_name: carol-coordinator
+    hostname: carol-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=carol-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+    command: ["coordinator", "--member-id", "carol", "--address", ":8001"]
+    ports:
+      - "8003:8001"
+    volumes:
+      - certs:/collective/certs
+      - carol-coord-data:/data
+    networks:
+      - collective-net
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Alice's nodes
+  alice-node-01:
+    build: ../..
+    container_name: alice-node-01
+    hostname: alice-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824  # 1GB
+    command: ["node", "--member-id", "alice", "--node-id", "alice-node-01"]
+    depends_on:
+      - alice-coordinator
+    volumes:
+      - certs:/collective/certs
+      - alice-node-01-data:/data
+    networks:
+      - collective-net
+
+  alice-node-02:
+    build: ../..
+    container_name: alice-node-02
+    hostname: alice-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "alice", "--node-id", "alice-node-02"]
+    depends_on:
+      - alice-coordinator
+    volumes:
+      - certs:/collective/certs
+      - alice-node-02-data:/data
+    networks:
+      - collective-net
+
+  alice-node-03:
+    build: ../..
+    container_name: alice-node-03
+    hostname: alice-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "alice", "--node-id", "alice-node-03"]
+    depends_on:
+      - alice-coordinator
+    volumes:
+      - certs:/collective/certs
+      - alice-node-03-data:/data
+    networks:
+      - collective-net
+
+  # Bob's nodes
+  bob-node-01:
+    build: ../..
+    container_name: bob-node-01
+    hostname: bob-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "bob", "--node-id", "bob-node-01"]
+    depends_on:
+      - bob-coordinator
+    volumes:
+      - certs:/collective/certs
+      - bob-node-01-data:/data
+    networks:
+      - collective-net
+
+  bob-node-02:
+    build: ../..
+    container_name: bob-node-02
+    hostname: bob-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "bob", "--node-id", "bob-node-02"]
+    depends_on:
+      - bob-coordinator
+    volumes:
+      - certs:/collective/certs
+      - bob-node-02-data:/data
+    networks:
+      - collective-net
+
+  bob-node-03:
+    build: ../..
+    container_name: bob-node-03
+    hostname: bob-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "bob", "--node-id", "bob-node-03"]
+    depends_on:
+      - bob-coordinator
+    volumes:
+      - certs:/collective/certs
+      - bob-node-03-data:/data
+    networks:
+      - collective-net
+
+  # Carol's nodes
+  carol-node-01:
+    build: ../..
+    container_name: carol-node-01
+    hostname: carol-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "carol", "--node-id", "carol-node-01"]
+    depends_on:
+      - carol-coordinator
+    volumes:
+      - certs:/collective/certs
+      - carol-node-01-data:/data
+    networks:
+      - collective-net
+
+  carol-node-02:
+    build: ../..
+    container_name: carol-node-02
+    hostname: carol-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "carol", "--node-id", "carol-node-02"]
+    depends_on:
+      - carol-coordinator
+    volumes:
+      - certs:/collective/certs
+      - carol-node-02-data:/data
+    networks:
+      - collective-net
+
+  carol-node-03:
+    build: ../..
+    container_name: carol-node-03
+    hostname: carol-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "carol", "--node-id", "carol-node-03"]
+    depends_on:
+      - carol-coordinator
+    volumes:
+      - certs:/collective/certs
+      - carol-node-03-data:/data
+    networks:
+      - collective-net
+
+volumes:
+  # Shared certificate volume for all containers
+  certs:
+    driver: local
+  
+  # Individual data volumes for each component
+  alice-coord-data:
+  bob-coord-data:
+  carol-coord-data:
+  alice-node-01-data:
+  alice-node-02-data:
+  alice-node-03-data:
+  bob-node-01-data:
+  bob-node-02-data:
+  bob-node-03-data:
+  carol-node-01-data:
+  carol-node-02-data:
+  carol-node-03-data:
+
+networks:
+  collective-net:
+    driver: bridge

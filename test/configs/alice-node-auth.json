@@ -1,0 +1,18 @@
+{
+  "mode": "node",
+  "member_id": "alice",
+  "node": {
+    "node_id": "alice-node-01",
+    "address": ":9001",
+    "data_dir": "./data/alice-node-01",
+    "storage_capacity": 10737418240,
+    "coordinator_address": "localhost:8001"
+  },
+  "auth": {
+    "enabled": true,
+    "ca_cert": "./data/certs/alice-ca/ca.crt",
+    "cert": "./data/certs/alice-alice-node-01/cert.pem",
+    "key": "./data/certs/alice-alice-node-01/key.pem",
+    "min_tls_version": "1.3"
+  }
+}

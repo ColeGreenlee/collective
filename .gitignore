@@ -9,13 +9,27 @@
 *.dylib
 
 # Test binary, built with `go test -c`
-*.test
 
-# Code coverage profiles and other test artifacts
+# Test artifacts
+*.test
 *.out
 coverage.*
 *.coverprofile
 profile.cov
+coverage.html
+coverage.txt
+*.prof
+benchmark.txt
+trivy-results.sarif
+
+# Go test cache
+.test_cache/
+test_results/
+
+# Fuzz test artifacts
+testdata/fuzz/
+crashers/
+suppressions/
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -35,6 +49,7 @@ bin/
 
 data/*
 !data/configs/
+!data/certs/README.md
 
 # Collective-specific ignores
 *.log
@@ -44,11 +59,31 @@ docker-compose-generated.yml
 
 # Temporary test files  
 status-example.json
+/tmp/test_*.bin
+/tmp/retrieved_*.bin
+/tmp/concurrent_*.bin
+/tmp/*.txt
+/tmp/*.yaml
+/tmp/*.md
+/tmp/scale_test.sh
+/tmp/memory_test.sh
+/tmp/test_fuse.sh
+/tmp/full_scale_test.sh
+
+# Large test data files
+*.bin
+!bin/
 
 # Build artifacts
 collective
 collective.exe
+collective-*-*
 
 # Development testing
 test-output/
 *.tmp
+
+# FUSE mount points (for testing)
+/tmp/collective_mount/
+/tmp/collective_test/
+/mnt/collective/

@@ -1,9 +1,10 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
+	
+	"collective/pkg/auth"
 )
 
 type Mode string
@@ -14,10 +15,11 @@ const (
 )
 
 type Config struct {
-	Mode        Mode              `json:"mode"`
-	MemberID    string            `json:"member_id"`
-	Coordinator CoordinatorConfig `json:"coordinator,omitempty"`
-	Node        NodeConfig        `json:"node,omitempty"`
+	Mode        Mode               `json:"mode"`
+	MemberID    string             `json:"member_id"`
+	Coordinator CoordinatorConfig  `json:"coordinator,omitempty"`
+	Node        NodeConfig         `json:"node,omitempty"`
+	Auth        *auth.AuthConfig   `json:"auth,omitempty"`
 }
 
 type CoordinatorConfig struct {
@@ -46,12 +48,8 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	return &cfg, nil
+	// Use enhanced loader to support human-friendly sizes
+	return LoadConfigEnhanced(data)
 }
 
 func LoadFromEnv() *Config {

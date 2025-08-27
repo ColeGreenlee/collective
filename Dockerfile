@@ -15,27 +15,47 @@ RUN protoc --go_out=. --go_opt=paths=source_relative \
            proto/*.proto && \
     mkdir -p pkg/protocol && \
     mv proto/*.pb.go pkg/protocol/ && \
-    go build -o collective cmd/collective/main.go
+    go build -o collective ./cmd/collective
 
 # Runtime stage
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates
+# Install ca-certificates and bash for entrypoint script
+RUN apk add --no-cache ca-certificates bash
 
 WORKDIR /app
-COPY --from=builder /app/collective /app/collective
-COPY --from=builder /app/configs /app/configs
 
-# Create data directory
-RUN mkdir -p /data
+# Copy the binary and entrypoint script
+COPY --from=builder /app/collective /usr/local/bin/collective
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-# Default to coordinator mode
-ENV COLLECTIVE_MODE=coordinator
-ENV COLLECTIVE_MEMBER_ID=""
-ENV COLLECTIVE_COORDINATOR_ADDRESS=":8001"
-ENV COLLECTIVE_NODE_ADDRESS=":7001"
-ENV COLLECTIVE_DATA_DIR="/data"
+# Create necessary directories
+RUN mkdir -p /data /collective/certs && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 8001 8002 8003 7001 7002 7003 7004 7005 7006
+# Environment variables for auto-configuration
+ENV COLLECTIVE_AUTO_TLS=true \
+    COLLECTIVE_CERT_DIR=/collective/certs \
+    COLLECTIVE_MEMBER_ID="" \
+    COLLECTIVE_COMPONENT_TYPE="" \
+    COLLECTIVE_COMPONENT_ID="" \
+    COLLECTIVE_COORDINATOR_ADDRESS="" \
+    COLLECTIVE_STORAGE_CAPACITY=10737418240
 
-ENTRYPOINT ["/app/collective"]
+# Expose ports
+# Coordinator port (gRPC)
+EXPOSE 8001
+# Node port (gRPC)
+EXPOSE 9001
+
+# Volume for certificates (shared between containers)
+VOLUME /collective/certs
+
+# Volume for data (per-container)
+VOLUME /data
+
+# Use our custom entrypoint
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+# Default command (can be overridden)
+CMD ["coordinator"]

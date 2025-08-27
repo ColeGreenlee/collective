@@ -1,0 +1,11 @@
+{
+  "mode": "node",
+  "member_id": "alice",
+  "node": {
+    "node_id": "alice-node-03",
+    "address": "alice-node-03:7003",
+    "coordinator_address": "alice-coordinator:8001",
+    "storage_capacity": 1073741824,
+    "data_dir": "/data"
+  }
+}

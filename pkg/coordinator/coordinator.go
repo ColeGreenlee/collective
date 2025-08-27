@@ -6,10 +6,10 @@ import (
 	"net"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
+	"collective/pkg/auth"
 	"collective/pkg/config"
 	"collective/pkg/protocol"
 	"collective/pkg/storage"
@@ -17,6 +17,7 @@ import (
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type Coordinator struct {
@@ -26,6 +27,7 @@ type Coordinator struct {
 	address  string
 	logger   *zap.Logger
 	config   *config.CoordinatorConfig
+	authConfig *auth.AuthConfig
 	
 	// Peer management
 	peers     map[types.MemberID]*Peer
@@ -44,12 +46,42 @@ type Coordinator struct {
 	fileEntries    map[string]*types.FileEntry
 	directoryMutex sync.RWMutex
 	
+	// Per-file locks for concurrent write protection
+	fileLocks     map[string]*sync.RWMutex
+	fileLockMutex sync.Mutex
+	
+	// Performance optimization flags
+	useOptimizedStreaming bool
+	
+	// Chunk management
+	chunkManager      *storage.ChunkManager
+	chunkAllocations  map[types.ChunkID][]types.NodeID  // Which nodes have which chunks
+	fileChunks        map[string][]types.ChunkID        // File path to chunk IDs
+	chunkMutex        sync.RWMutex
+	
+	// Write coalescing for small writes
+	writeBuffers      map[string]*WriteBuffer
+	writeBufferMutex  sync.RWMutex
+	
 	server   *grpc.Server
 	listener net.Listener
 	
 	ctx    context.Context
 	cancel context.CancelFunc
 }
+
+type WriteBuffer struct {
+	data         []byte
+	lastWrite    time.Time
+	flushTimer   *time.Timer
+	flushSize    int64
+	flushTimeout time.Duration
+}
+
+const (
+	WriteBufferFlushSize    = 256 * 1024      // Flush after 256KB
+	WriteBufferFlushTimeout = 100 * time.Millisecond // Flush after 100ms of inactivity
+)
 
 type Peer struct {
 	MemberID   types.MemberID
@@ -61,6 +93,10 @@ type Peer struct {
 }
 
 func New(cfg *config.CoordinatorConfig, memberID string, logger *zap.Logger) *Coordinator {
+	return NewWithAuth(cfg, memberID, logger, nil)
+}
+
+func NewWithAuth(cfg *config.CoordinatorConfig, memberID string, logger *zap.Logger, authConfig *auth.AuthConfig) *Coordinator {
 	ctx, cancel := context.WithCancel(context.Background())
 	
 	return &Coordinator{
@@ -68,11 +104,18 @@ func New(cfg *config.CoordinatorConfig, memberID string, logger *zap.Logger) *Co
 		address:  cfg.Address,
 		logger:   logger,
 		config:   cfg,
+		authConfig: authConfig,
 		peers:       make(map[types.MemberID]*Peer),
 		nodes:       make(map[types.NodeID]*types.StorageNode),
 		files:       make(map[types.FileID]*types.File),
 		directories: make(map[string]*types.Directory),
 		fileEntries: make(map[string]*types.FileEntry),
+		fileLocks:        make(map[string]*sync.RWMutex),
+		chunkManager:     storage.NewChunkManager(),
+		chunkAllocations: make(map[types.ChunkID][]types.NodeID),
+		fileChunks:       make(map[string][]types.ChunkID),
+		writeBuffers:     make(map[string]*WriteBuffer),
+		useOptimizedStreaming: true, // Enable optimized streaming by default
 		ctx:      ctx,
 		cancel:   cancel,
 	}
@@ -85,7 +128,41 @@ func (c *Coordinator) Start() error {
 	}
 	
 	c.listener = listener
-	c.server = grpc.NewServer()
+	
+	// Create gRPC server with authentication if configured
+	var serverOpts []grpc.ServerOption
+	
+	if c.authConfig != nil && c.authConfig.Enabled {
+		// Create TLS configuration
+		tlsBuilder, err := auth.NewTLSConfigBuilder(c.authConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create TLS config: %w", err)
+		}
+		
+		tlsConfig, err := tlsBuilder.BuildServerConfig()
+		if err != nil {
+			return fmt.Errorf("failed to build server TLS config: %w", err)
+		}
+		
+		if tlsConfig != nil {
+			creds := credentials.NewTLS(tlsConfig)
+			serverOpts = append(serverOpts, grpc.Creds(creds))
+			c.logger.Info("TLS enabled for coordinator", zap.String("member_id", string(c.memberID)))
+		}
+		
+		// Add authentication interceptors if required
+		if c.authConfig.RequireClientAuth {
+			// Create authenticator and interceptor
+			authInterceptor := auth.NewAuthInterceptor(nil, nil, true)
+			serverOpts = append(serverOpts,
+				grpc.UnaryInterceptor(authInterceptor.UnaryServerInterceptor()),
+				grpc.StreamInterceptor(authInterceptor.StreamServerInterceptor()),
+			)
+			c.logger.Info("Client authentication required", zap.String("member_id", string(c.memberID)))
+		}
+	}
+	
+	c.server = grpc.NewServer(serverOpts...)
 	protocol.RegisterCoordinatorServer(c.server, c)
 	
 	c.logger.Info("Coordinator starting", zap.String("address", c.address), zap.String("member_id", string(c.memberID)))
@@ -292,6 +369,7 @@ func (c *Coordinator) PeerDisconnect(ctx context.Context, req *protocol.PeerDisc
 func (c *Coordinator) Heartbeat(ctx context.Context, req *protocol.HeartbeatRequest) (*protocol.HeartbeatResponse, error) {
 	memberID := types.MemberID(req.MemberId)
 	
+	// Handle peer heartbeat
 	c.peerMutex.Lock()
 	if peer, exists := c.peers[memberID]; exists {
 		peer.LastSeen = time.Now()
@@ -299,9 +377,60 @@ func (c *Coordinator) Heartbeat(ctx context.Context, req *protocol.HeartbeatRequ
 	}
 	c.peerMutex.Unlock()
 	
+	// Handle node heartbeat if NodeInfo is provided
+	if req.NodeInfo != nil {
+		nodeID := types.NodeID(req.NodeInfo.NodeId)
+		
+		c.nodeMutex.Lock()
+		
+		if node, exists := c.nodes[nodeID]; exists {
+			// Update existing node's health status
+			node.UsedCapacity = req.NodeInfo.UsedCapacity
+			node.IsHealthy = req.NodeInfo.IsHealthy
+			node.LastHealthCheck = time.Now()
+			c.nodeMutex.Unlock()
+			
+			c.logger.Debug("Node heartbeat received",
+				zap.String("node_id", string(nodeID)),
+				zap.Int64("used_capacity", req.NodeInfo.UsedCapacity))
+			
+			return &protocol.HeartbeatResponse{
+				MemberId:  string(c.memberID),
+				Timestamp: time.Now().Unix(),
+				Success:   true,
+			}, nil
+		} else {
+			c.nodeMutex.Unlock()
+			
+			// Node not found - it needs to re-register
+			c.logger.Warn("Heartbeat from unregistered node",
+				zap.String("node_id", string(nodeID)))
+			
+			// Auto-register the node if it's from our member
+			if req.NodeInfo.MemberId == string(c.memberID) {
+				c.registerNodeInternal(req.NodeInfo.NodeId, req.NodeInfo.Address, req.NodeInfo.TotalCapacity)
+				c.logger.Info("Auto-registered node from heartbeat",
+					zap.String("node_id", string(nodeID)))
+					
+				return &protocol.HeartbeatResponse{
+					MemberId:  string(c.memberID),
+					Timestamp: time.Now().Unix(),
+					Success:   true,
+				}, nil
+			}
+			
+			return &protocol.HeartbeatResponse{
+				MemberId:  string(c.memberID),
+				Timestamp: time.Now().Unix(),
+				Success:   false,  // Node needs to register
+			}, nil
+		}
+	}
+	
 	return &protocol.HeartbeatResponse{
 		MemberId:  string(c.memberID),
 		Timestamp: time.Now().Unix(),
+		Success:   true,
 	}, nil
 }
 
@@ -424,7 +553,7 @@ func (c *Coordinator) StoreFile(ctx context.Context, req *protocol.StoreFileRequ
 			}
 
 			// Connect to node and store chunk
-			if err := c.storeChunkOnNode(ctx, &chunk, targetNode); err != nil {
+			if err := c.storeChunkOnNode(ctx, targetNode, chunk); err != nil {
 				c.logger.Warn("Failed to store chunk on node",
 					zap.String("chunk_id", string(chunk.ID)),
 					zap.String("node_id", string(nodeID)),
@@ -520,7 +649,7 @@ func (c *Coordinator) RetrieveFile(ctx context.Context, req *protocol.RetrieveFi
 				continue
 			}
 
-			data, err := c.retrieveChunkFromNode(ctx, loc.ChunkID, node)
+			data, err := c.retrieveChunkFromNode(ctx, node, loc.ChunkID)
 			if err != nil {
 				c.logger.Warn("Failed to retrieve chunk from node",
 					zap.String("chunk_id", string(loc.ChunkID)),
@@ -571,54 +700,6 @@ func (c *Coordinator) RetrieveFile(ctx context.Context, req *protocol.RetrieveFi
 	}, nil
 }
 
-func (c *Coordinator) storeChunkOnNode(ctx context.Context, chunk *types.Chunk, node *types.StorageNode) error {
-	conn, err := grpc.Dial(node.Address, grpc.WithInsecure())
-	if err != nil {
-		return fmt.Errorf("failed to connect to node: %w", err)
-	}
-	defer conn.Close()
-
-	client := protocol.NewNodeClient(conn)
-	resp, err := client.StoreChunk(ctx, &protocol.StoreChunkRequest{
-		ChunkId: string(chunk.ID),
-		Data:    chunk.Data,
-		FileId:  string(chunk.FileID),
-		Index:   int32(chunk.Index),
-	})
-
-	if err != nil {
-		return err
-	}
-
-	if !resp.Success {
-		return fmt.Errorf("node rejected chunk storage")
-	}
-
-	return nil
-}
-
-func (c *Coordinator) retrieveChunkFromNode(ctx context.Context, chunkID types.ChunkID, node *types.StorageNode) ([]byte, error) {
-	conn, err := grpc.Dial(node.Address, grpc.WithInsecure())
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to node: %w", err)
-	}
-	defer conn.Close()
-
-	client := protocol.NewNodeClient(conn)
-	resp, err := client.RetrieveChunk(ctx, &protocol.RetrieveChunkRequest{
-		ChunkId: string(chunkID),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if !resp.Success {
-		return nil, fmt.Errorf("chunk not found on node")
-	}
-
-	return resp.Data, nil
-}
 
 func (c *Coordinator) ShareNodeList(ctx context.Context, req *protocol.ShareNodeListRequest) (*protocol.ShareNodeListResponse, error) {
 	for _, nodeInfo := range req.Nodes {
@@ -1009,376 +1090,11 @@ func (c *Coordinator) checkNodeHealth() {
 	}
 }
 
-// Directory Operations
-
-func (c *Coordinator) CreateDirectory(ctx context.Context, req *protocol.CreateDirectoryRequest) (*protocol.CreateDirectoryResponse, error) {
-	c.directoryMutex.Lock()
-	defer c.directoryMutex.Unlock()
-	
-	path := req.Path
-	if path == "" {
-		return &protocol.CreateDirectoryResponse{
-			Success: false,
-			Message: "path cannot be empty",
-		}, nil
-	}
-	
-	// Check if directory already exists
-	if _, exists := c.directories[path]; exists {
-		return &protocol.CreateDirectoryResponse{
-			Success: false,
-			Message: "directory already exists",
-		}, nil
-	}
-	
-	// Create parent directories if they don't exist
-	parent := getParentPath(path)
-	if parent != "/" && parent != "" {
-		if _, exists := c.directories[parent]; !exists {
-			// Release lock before recursive call to avoid deadlock
-			c.directoryMutex.Unlock()
-			
-			// Create parent directory recursively
-			_, err := c.CreateDirectory(ctx, &protocol.CreateDirectoryRequest{
-				Path: parent,
-				Mode: req.Mode,
-			})
-			
-			// Reacquire lock
-			c.directoryMutex.Lock()
-			
-			if err != nil {
-				return &protocol.CreateDirectoryResponse{
-					Success: false,
-					Message: fmt.Sprintf("failed to create parent directory: %v", err),
-				}, nil
-			}
-		}
-	}
-	
-	// Create the directory
-	dir := &types.Directory{
-		Path:     path,
-		Parent:   parent,
-		Children: []string{},
-		Mode:     os.FileMode(req.Mode),
-		Modified: time.Now(),
-		Owner:    c.memberID,
-	}
-	
-	c.directories[path] = dir
-	
-	// Add to parent's children list
-	if parent != "" {
-		if parentDir, exists := c.directories[parent]; exists {
-			parentDir.Children = append(parentDir.Children, path)
-		}
-	}
-	
-	c.logger.Info("Created directory", 
-		zap.String("path", path),
-		zap.String("owner", string(c.memberID)))
-	
-	return &protocol.CreateDirectoryResponse{
-		Success: true,
-		Message: "directory created successfully",
-	}, nil
-}
-
-func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirectoryRequest) (*protocol.ListDirectoryResponse, error) {
-	c.directoryMutex.RLock()
-	defer c.directoryMutex.RUnlock()
-	
-	path := req.Path
-	if path == "" {
-		path = "/"
-	}
-	
-	var entries []*protocol.DirectoryEntry
-	
-	// Check if it's a directory
-	if dir, exists := c.directories[path]; exists {
-		for _, childPath := range dir.Children {
-			if childDir, exists := c.directories[childPath]; exists {
-				entries = append(entries, &protocol.DirectoryEntry{
-					Name:         getBaseName(childPath),
-					Path:         childPath,
-					IsDirectory:  true,
-					Size:         0,
-					Mode:         uint32(childDir.Mode),
-					ModifiedTime: childDir.Modified.Unix(),
-					Owner:        string(childDir.Owner),
-				})
-			} else if fileEntry, exists := c.fileEntries[childPath]; exists {
-				entries = append(entries, &protocol.DirectoryEntry{
-					Name:         getBaseName(childPath),
-					Path:         childPath,
-					IsDirectory:  false,
-					Size:         fileEntry.Size,
-					Mode:         uint32(fileEntry.Mode),
-					ModifiedTime: fileEntry.Modified.Unix(),
-					Owner:        string(fileEntry.Owner),
-				})
-			}
-		}
-	} else {
-		return &protocol.ListDirectoryResponse{
-			Success: false,
-			Entries: nil,
-		}, nil
-	}
-	
-	return &protocol.ListDirectoryResponse{
-		Success: true,
-		Entries: entries,
-	}, nil
-}
-
-func (c *Coordinator) DeleteDirectory(ctx context.Context, req *protocol.DeleteDirectoryRequest) (*protocol.DeleteDirectoryResponse, error) {
-	c.directoryMutex.Lock()
-	defer c.directoryMutex.Unlock()
-	
-	path := req.Path
-	if path == "" || path == "/" {
-		return &protocol.DeleteDirectoryResponse{
-			Success: false,
-			Message: "cannot delete root directory",
-		}, nil
-	}
-	
-	dir, exists := c.directories[path]
-	if !exists {
-		return &protocol.DeleteDirectoryResponse{
-			Success: false,
-			Message: "directory does not exist",
-		}, nil
-	}
-	
-	// Check if directory is empty (unless recursive flag is set)
-	if len(dir.Children) > 0 && !req.Recursive {
-		return &protocol.DeleteDirectoryResponse{
-			Success: false,
-			Message: "directory is not empty",
-		}, nil
-	}
-	
-	// If recursive, delete all children first
-	if req.Recursive {
-		for _, childPath := range dir.Children {
-			if _, isDir := c.directories[childPath]; isDir {
-				_, err := c.DeleteDirectory(ctx, &protocol.DeleteDirectoryRequest{
-					Path:      childPath,
-					Recursive: true,
-				})
-				if err != nil {
-					return &protocol.DeleteDirectoryResponse{
-						Success: false,
-						Message: fmt.Sprintf("failed to delete child directory %s: %v", childPath, err),
-					}, nil
-				}
-			} else {
-				// Delete file entry
-				delete(c.fileEntries, childPath)
-			}
-		}
-	}
-	
-	// Remove from parent's children list
-	if dir.Parent != "" && dir.Parent != "/" {
-		if parent, exists := c.directories[dir.Parent]; exists {
-			for i, child := range parent.Children {
-				if child == path {
-					parent.Children = append(parent.Children[:i], parent.Children[i+1:]...)
-					break
-				}
-			}
-		}
-	}
-	
-	// Delete the directory
-	delete(c.directories, path)
-	
-	c.logger.Info("Deleted directory", 
-		zap.String("path", path),
-		zap.Bool("recursive", req.Recursive))
-	
-	return &protocol.DeleteDirectoryResponse{
-		Success: true,
-		Message: "directory deleted successfully",
-	}, nil
-}
-
-func (c *Coordinator) StatEntry(ctx context.Context, req *protocol.StatEntryRequest) (*protocol.StatEntryResponse, error) {
-	c.directoryMutex.RLock()
-	defer c.directoryMutex.RUnlock()
-	
-	path := req.Path
-	
-	// Check if it's a directory
-	if dir, exists := c.directories[path]; exists {
-		return &protocol.StatEntryResponse{
-			Success: true,
-			Entry: &protocol.DirectoryEntry{
-				Name:         getBaseName(path),
-				Path:         path,
-				IsDirectory:  true,
-				Size:         0,
-				Mode:         uint32(dir.Mode),
-				ModifiedTime: dir.Modified.Unix(),
-				Owner:        string(dir.Owner),
-			},
-		}, nil
-	}
-	
-	// Check if it's a file
-	if fileEntry, exists := c.fileEntries[path]; exists {
-		return &protocol.StatEntryResponse{
-			Success: true,
-			Entry: &protocol.DirectoryEntry{
-				Name:         getBaseName(path),
-				Path:         path,
-				IsDirectory:  false,
-				Size:         fileEntry.Size,
-				Mode:         uint32(fileEntry.Mode),
-				ModifiedTime: fileEntry.Modified.Unix(),
-				Owner:        string(fileEntry.Owner),
-			},
-		}, nil
-	}
-	
-	return &protocol.StatEntryResponse{
-		Success: false,
-		Entry:   nil,
-	}, nil
-}
-
-func (c *Coordinator) MoveEntry(ctx context.Context, req *protocol.MoveEntryRequest) (*protocol.MoveEntryResponse, error) {
-	c.directoryMutex.Lock()
-	defer c.directoryMutex.Unlock()
-	
-	oldPath := req.OldPath
-	newPath := req.NewPath
-	
-	// Check if source exists
-	isDirectory := false
-	if _, exists := c.directories[oldPath]; exists {
-		isDirectory = true
-	} else if _, exists := c.fileEntries[oldPath]; !exists {
-		return &protocol.MoveEntryResponse{
-			Success: false,
-			Message: "source path does not exist",
-		}, nil
-	}
-	
-	// Check if destination already exists
-	if _, exists := c.directories[newPath]; exists {
-		return &protocol.MoveEntryResponse{
-			Success: false,
-			Message: "destination already exists",
-		}, nil
-	}
-	if _, exists := c.fileEntries[newPath]; exists {
-		return &protocol.MoveEntryResponse{
-			Success: false,
-			Message: "destination already exists",
-		}, nil
-	}
-	
-	// Ensure destination parent exists
-	newParent := getParentPath(newPath)
-	if newParent != "/" && newParent != "" {
-		if _, exists := c.directories[newParent]; !exists {
-			return &protocol.MoveEntryResponse{
-				Success: false,
-				Message: "destination parent directory does not exist",
-			}, nil
-		}
-	}
-	
-	if isDirectory {
-		// Move directory
-		dir := c.directories[oldPath]
-		
-		// Update all children paths recursively
-		c.updateChildrenPaths(oldPath, newPath)
-		
-		// Remove from old parent
-		if dir.Parent != "" && dir.Parent != "/" {
-			if parent, exists := c.directories[dir.Parent]; exists {
-				for i, child := range parent.Children {
-					if child == oldPath {
-						parent.Children = append(parent.Children[:i], parent.Children[i+1:]...)
-						break
-					}
-				}
-			}
-		}
-		
-		// Update directory path and parent
-		dir.Path = newPath
-		dir.Parent = newParent
-		
-		// Add to new parent
-		if newParent != "" && newParent != "/" {
-			if parent, exists := c.directories[newParent]; exists {
-				parent.Children = append(parent.Children, newPath)
-			}
-		}
-		
-		// Update the map
-		delete(c.directories, oldPath)
-		c.directories[newPath] = dir
-		
-	} else {
-		// Move file entry
-		fileEntry := c.fileEntries[oldPath]
-		
-		// Remove from old parent
-		oldParent := getParentPath(oldPath)
-		if oldParent != "" && oldParent != "/" {
-			if parent, exists := c.directories[oldParent]; exists {
-				for i, child := range parent.Children {
-					if child == oldPath {
-						parent.Children = append(parent.Children[:i], parent.Children[i+1:]...)
-						break
-					}
-				}
-			}
-		}
-		
-		// Update file entry path
-		fileEntry.Path = newPath
-		
-		// Add to new parent
-		if newParent != "" && newParent != "/" {
-			if parent, exists := c.directories[newParent]; exists {
-				parent.Children = append(parent.Children, newPath)
-			}
-		}
-		
-		// Update the map
-		delete(c.fileEntries, oldPath)
-		c.fileEntries[newPath] = fileEntry
-	}
-	
-	c.logger.Info("Moved entry",
-		zap.String("oldPath", oldPath),
-		zap.String("newPath", newPath),
-		zap.Bool("isDirectory", isDirectory))
-	
-	return &protocol.MoveEntryResponse{
-		Success: true,
-		Message: "entry moved successfully",
-	}, nil
-}
-
-// Helper functions
-
+// initializeRootDirectory creates the root directory entry
 func (c *Coordinator) initializeRootDirectory() {
 	c.directoryMutex.Lock()
 	defer c.directoryMutex.Unlock()
 	
-	// Create root directory if it doesn't exist
 	if _, exists := c.directories["/"]; !exists {
 		c.directories["/"] = &types.Directory{
 			Path:     "/",
@@ -1392,247 +1108,5 @@ func (c *Coordinator) initializeRootDirectory() {
 	}
 }
 
-func getParentPath(path string) string {
-	if path == "/" || path == "" {
-		return ""
-	}
-	
-	// Remove trailing slash if present
-	if path[len(path)-1] == '/' {
-		path = path[:len(path)-1]
-	}
-	
-	lastSlash := strings.LastIndex(path, "/")
-	if lastSlash <= 0 {
-		return "/"
-	}
-	return path[:lastSlash]
-}
+// Directory Operations
 
-func getBaseName(path string) string {
-	if path == "/" || path == "" {
-		return ""
-	}
-	
-	// Remove trailing slash if present
-	if path[len(path)-1] == '/' {
-		path = path[:len(path)-1]
-	}
-	
-	lastSlash := strings.LastIndex(path, "/")
-	if lastSlash == -1 {
-		return path
-	}
-	return path[lastSlash+1:]
-}
-
-func (c *Coordinator) updateChildrenPaths(oldPrefix, newPrefix string) {
-	// Update all directories that start with the old prefix
-	for path, dir := range c.directories {
-		if strings.HasPrefix(path, oldPrefix+"/") {
-			newPath := newPrefix + path[len(oldPrefix):]
-			dir.Path = newPath
-			dir.Parent = getParentPath(newPath)
-			
-			delete(c.directories, path)
-			c.directories[newPath] = dir
-		}
-	}
-	
-	// Update all file entries that start with the old prefix
-	for path, fileEntry := range c.fileEntries {
-		if strings.HasPrefix(path, oldPrefix+"/") {
-			newPath := newPrefix + path[len(oldPrefix):]
-			fileEntry.Path = newPath
-			
-			delete(c.fileEntries, path)
-			c.fileEntries[newPath] = fileEntry
-		}
-	}
-}
-
-// CreateFile creates a new file at the specified path
-func (c *Coordinator) CreateFile(ctx context.Context, req *protocol.CreateFileRequest) (*protocol.CreateFileResponse, error) {
-	c.logger.Debug("CreateFile request", zap.String("path", req.Path))
-	
-	// Validate path
-	if req.Path == "" || req.Path == "/" {
-		return &protocol.CreateFileResponse{
-			Success: false,
-			Message: "Invalid file path",
-		}, nil
-	}
-	
-	c.directoryMutex.Lock()
-	defer c.directoryMutex.Unlock()
-	
-	// Check if file already exists
-	if _, exists := c.fileEntries[req.Path]; exists {
-		return &protocol.CreateFileResponse{
-			Success: false,
-			Message: "File already exists",
-		}, nil
-	}
-	
-	// Check if path conflicts with directory
-	if _, exists := c.directories[req.Path]; exists {
-		return &protocol.CreateFileResponse{
-			Success: false,
-			Message: "Path conflicts with existing directory",
-		}, nil
-	}
-	
-	// Ensure parent directory exists
-	parent := getParentPath(req.Path)
-	if parent != "" && parent != "/" {
-		if _, exists := c.directories[parent]; !exists {
-			return &protocol.CreateFileResponse{
-				Success: false,
-				Message: "Parent directory does not exist",
-			}, nil
-		}
-	}
-	
-	// Create file entry
-	fileEntry := &types.FileEntry{
-		Path:     req.Path,
-		Size:     0,
-		Mode:     os.FileMode(req.Mode),
-		Modified: time.Now(),
-		ChunkIDs: []types.ChunkID{},
-		Owner:    c.memberID,
-	}
-	
-	c.fileEntries[req.Path] = fileEntry
-	
-	// Add to parent directory's children
-	if parent != "" {
-		if parentDir, exists := c.directories[parent]; exists {
-			parentDir.Children = append(parentDir.Children, req.Path)
-		}
-	}
-	
-	c.logger.Info("Created file", zap.String("path", req.Path), zap.Uint32("mode", req.Mode))
-	
-	return &protocol.CreateFileResponse{
-		Success: true,
-		Message: "File created successfully",
-	}, nil
-}
-
-// ReadFile reads data from a file
-func (c *Coordinator) ReadFile(ctx context.Context, req *protocol.ReadFileRequest) (*protocol.ReadFileResponse, error) {
-	c.logger.Debug("ReadFile request", 
-		zap.String("path", req.Path),
-		zap.Int64("offset", req.Offset),
-		zap.Int64("length", req.Length))
-	
-	c.directoryMutex.RLock()
-	fileEntry, exists := c.fileEntries[req.Path]
-	c.directoryMutex.RUnlock()
-	
-	if !exists {
-		return &protocol.ReadFileResponse{
-			Success: false,
-			Data:    nil,
-		}, nil
-	}
-	
-	// Handle empty file or read beyond file
-	if fileEntry.Size == 0 || req.Offset >= fileEntry.Size {
-		return &protocol.ReadFileResponse{
-			Success:   true,
-			Data:      []byte{},
-			BytesRead: 0,
-		}, nil
-	}
-	
-	// For now, we'll implement a simple in-memory file storage
-	// In a real implementation, this would read from chunks
-	// TODO: Implement chunk-based file reading
-	
-	// Return empty data for now since files aren't actually stored in chunks yet
-	return &protocol.ReadFileResponse{
-		Success:   true,
-		Data:      []byte{},
-		BytesRead: 0,
-	}, nil
-}
-
-// WriteFile writes data to a file
-func (c *Coordinator) WriteFile(ctx context.Context, req *protocol.WriteFileRequest) (*protocol.WriteFileResponse, error) {
-	c.logger.Debug("WriteFile request",
-		zap.String("path", req.Path),
-		zap.Int64("offset", req.Offset),
-		zap.Int("data_size", len(req.Data)))
-	
-	c.directoryMutex.Lock()
-	defer c.directoryMutex.Unlock()
-	
-	fileEntry, exists := c.fileEntries[req.Path]
-	if !exists {
-		return &protocol.WriteFileResponse{
-			Success:      false,
-			BytesWritten: 0,
-			Message:      "File does not exist",
-		}, nil
-	}
-	
-	// For now, we'll simulate writing by updating the file size
-	// In a real implementation, this would create/update chunks
-	// TODO: Implement chunk-based file writing
-	
-	newSize := req.Offset + int64(len(req.Data))
-	if newSize > fileEntry.Size {
-		fileEntry.Size = newSize
-	}
-	fileEntry.Modified = time.Now()
-	
-	return &protocol.WriteFileResponse{
-		Success:      true,
-		BytesWritten: int64(len(req.Data)),
-		Message:      "Data written successfully",
-	}, nil
-}
-
-// DeleteFile deletes a file
-func (c *Coordinator) DeleteFile(ctx context.Context, req *protocol.DeleteFileRequest) (*protocol.DeleteFileResponse, error) {
-	c.logger.Debug("DeleteFile request", zap.String("path", req.Path))
-	
-	c.directoryMutex.Lock()
-	defer c.directoryMutex.Unlock()
-	
-	// Check if file exists
-	fileEntry, exists := c.fileEntries[req.Path]
-	if !exists {
-		return &protocol.DeleteFileResponse{
-			Success: false,
-			Message: "File does not exist",
-		}, nil
-	}
-	
-	// Remove from file entries
-	delete(c.fileEntries, req.Path)
-	
-	// Remove from parent directory's children
-	parent := getParentPath(req.Path)
-	if parent != "" {
-		if parentDir, exists := c.directories[parent]; exists {
-			children := parentDir.Children
-			for i, child := range children {
-				if child == req.Path {
-					parentDir.Children = append(children[:i], children[i+1:]...)
-					break
-				}
-			}
-		}
-	}
-	
-	// TODO: Delete associated chunks
-	c.logger.Info("Deleted file", zap.String("path", req.Path), zap.Int("chunks", len(fileEntry.ChunkIDs)))
-	
-	return &protocol.DeleteFileResponse{
-		Success: true,
-		Message: "File deleted successfully",
-	}, nil
-}

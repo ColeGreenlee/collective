@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -15,8 +16,10 @@ import (
 
 	"collective/pkg/config"
 	"collective/pkg/coordinator"
+	collectivefuse "collective/pkg/fuse"
 	"collective/pkg/node"
 	"collective/pkg/protocol"
+	"collective/pkg/utils"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
@@ -46,7 +49,7 @@ func main() {
 Each member runs a coordinator that manages their storage nodes.`,
 	}
 
-	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file path")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file path")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
 
 	rootCmd.AddCommand(
@@ -55,12 +58,16 @@ Each member runs a coordinator that manages their storage nodes.`,
 		clientCmd(),
 		peerCmd(),
 		versionCmd(),
-		statusCmd(),
+		enhancedStatusCmd(),  // Use enhanced status command
 		mountCmd(),
 		mkdirCmd(),
 		lsCmd(),
 		rmCmd(),
 		mvCmd(),
+		cleanupCmd,
+		authCommand(),
+		initCommand(),
+		configCommand(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -123,7 +130,13 @@ func coordinatorCmd() *cobra.Command {
 			}
 
 			// Create and start coordinator
-			coord := coordinator.New(&cfg.Coordinator, cfg.MemberID, logger)
+			var coord *coordinator.Coordinator
+			if cfg.Auth != nil && cfg.Auth.Enabled {
+				logger.Info("Starting coordinator with authentication enabled")
+				coord = coordinator.NewWithAuth(&cfg.Coordinator, cfg.MemberID, logger, cfg.Auth)
+			} else {
+				coord = coordinator.New(&cfg.Coordinator, cfg.MemberID, logger)
+			}
 			
 			// Connect to bootstrap peers with retry
 			for _, peer := range cfg.Coordinator.BootstrapPeers {
@@ -196,7 +209,7 @@ func nodeCmd() *cobra.Command {
 		nodeID             string
 		address            string
 		coordinatorAddress string
-		capacity           int64
+		capacityStr        string
 		dataDir            string
 	)
 
@@ -207,6 +220,18 @@ func nodeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger := setupLogger(verbose)
 			defer logger.Sync()
+
+			// Parse capacity from human-friendly format
+			var capacity int64
+			if capacityStr != "" {
+				var err error
+				capacity, err = utils.ParseDataSize(capacityStr)
+				if err != nil {
+					return fmt.Errorf("invalid capacity format: %w", err)
+				}
+			} else {
+				capacity = 1073741824 // Default 1GB
+			}
 
 			// Load configuration
 			var cfg *config.Config
@@ -240,7 +265,13 @@ func nodeCmd() *cobra.Command {
 			}
 
 			// Create and start node
-			storageNode := node.New(&cfg.Node, cfg.MemberID, logger)
+			var storageNode *node.Node
+			if cfg.Auth != nil && cfg.Auth.Enabled {
+				logger.Info("Starting node with authentication enabled")
+				storageNode = node.NewWithAuth(&cfg.Node, cfg.MemberID, logger, cfg.Auth)
+			} else {
+				storageNode = node.New(&cfg.Node, cfg.MemberID, logger)
+			}
 
 			// Handle shutdown gracefully
 			sigChan := make(chan os.Signal, 1)
@@ -257,7 +288,8 @@ func nodeCmd() *cobra.Command {
 				zap.String("node_id", cfg.Node.NodeID),
 				zap.String("member_id", cfg.MemberID),
 				zap.String("address", cfg.Node.Address),
-				zap.String("coordinator", cfg.Node.CoordinatorAddress))
+				zap.String("coordinator", cfg.Node.CoordinatorAddress),
+				zap.String("capacity", utils.FormatDataSize(cfg.Node.StorageCapacity)))
 
 			return storageNode.Start()
 		},
@@ -267,7 +299,7 @@ func nodeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&nodeID, "node-id", "", "unique node identifier (auto-generated if not specified)")
 	cmd.Flags().StringVar(&address, "address", ":7001", "node listening address")
 	cmd.Flags().StringVar(&coordinatorAddress, "coordinator", "localhost:8001", "coordinator address to connect to")
-	cmd.Flags().Int64Var(&capacity, "capacity", 1073741824, "storage capacity in bytes (default: 1GB)")
+	cmd.Flags().StringVar(&capacityStr, "capacity", "1GB", "storage capacity (e.g., 1GB, 500MB, 1.5TB)")
 	cmd.Flags().StringVar(&dataDir, "data-dir", "./data", "directory for storing chunks")
 
 	return cmd
@@ -306,10 +338,10 @@ func storeCmd() *cobra.Command {
 			logger := setupLogger(verbose)
 			defer logger.Sync()
 
-			// Read file
-			data, err := os.ReadFile(filePath)
+			// Get file info
+			fileInfo, err := os.Stat(filePath)
 			if err != nil {
-				return fmt.Errorf("failed to read file: %w", err)
+				return fmt.Errorf("failed to stat file: %w", err)
 			}
 
 			// Connect to coordinator
@@ -324,26 +356,133 @@ func storeCmd() *cobra.Command {
 
 			// Generate file ID if not provided
 			if fileID == "" {
-				fileID = fmt.Sprintf("file-%d", time.Now().Unix())
+				fileID = fmt.Sprintf("/stored/%s", filepath.Base(filePath))
 			}
 
-			// Store file
-			resp, err := client.StoreFile(ctx, &protocol.StoreFileRequest{
-				FileId:   fileID,
-				Data:     data,
-				Filename: filepath.Base(filePath),
-			})
+			// For files larger than 4MB, use streaming
+			const maxDirectSize = 4 * 1024 * 1024
+			if fileInfo.Size() > maxDirectSize {
+				// Create the file first
+				createResp, err := client.CreateFile(ctx, &protocol.CreateFileRequest{
+					Path: fileID,
+					Mode: uint32(fileInfo.Mode()),
+				})
+				if err != nil {
+					return fmt.Errorf("failed to create file: %w", err)
+				}
+				if !createResp.Success {
+					return fmt.Errorf("failed to create file: %s", createResp.Message)
+				}
 
-			if err != nil {
-				return fmt.Errorf("failed to store file: %w", err)
-			}
+				// Use streaming upload
+				stream, err := client.WriteFileStream(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create stream: %w", err)
+				}
 
-			if resp.Success {
-				logger.Info("File stored successfully",
-					zap.String("file_id", resp.FileId),
-					zap.Int("chunks", len(resp.Locations)))
+				// Send header
+				header := &protocol.WriteFileStreamRequest{
+					Data: &protocol.WriteFileStreamRequest_Header{
+						Header: &protocol.WriteFileStreamHeader{
+							Path:      fileID,
+							TotalSize: fileInfo.Size(),
+						},
+					},
+				}
+				if err := stream.Send(header); err != nil {
+					return fmt.Errorf("failed to send header: %w", err)
+				}
+
+				// Open file for streaming
+				file, err := os.Open(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to open file: %w", err)
+				}
+				defer file.Close()
+
+				// Stream file in chunks
+				const chunkSize = 1024 * 1024 // 1MB chunks
+				buffer := make([]byte, chunkSize)
+				bytesSent := int64(0)
+				
+				for {
+					n, err := file.Read(buffer)
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						return fmt.Errorf("failed to read file: %w", err)
+					}
+
+					chunk := &protocol.WriteFileStreamRequest{
+						Data: &protocol.WriteFileStreamRequest_ChunkData{
+							ChunkData: buffer[:n],
+						},
+					}
+					
+					if err := stream.Send(chunk); err != nil {
+						return fmt.Errorf("failed to send chunk: %w", err)
+					}
+					
+					bytesSent += int64(n)
+					if bytesSent % (10 * 1024 * 1024) == 0 {
+						logger.Info("Upload progress", 
+							zap.Int64("sent", bytesSent),
+							zap.Int64("total", fileInfo.Size()),
+							zap.Float64("percent", float64(bytesSent)/float64(fileInfo.Size())*100))
+					}
+				}
+
+				// Close stream and get response
+				resp, err := stream.CloseAndRecv()
+				if err != nil {
+					return fmt.Errorf("failed to complete stream: %w", err)
+				}
+
+				if resp.Success {
+					logger.Info("File stored successfully via streaming",
+						zap.String("file_id", fileID),
+						zap.Int64("bytes", resp.BytesWritten),
+						zap.Int32("chunks", resp.ChunksCreated))
+				} else {
+					return fmt.Errorf("streaming upload failed: %s", resp.Message)
+				}
 			} else {
-				logger.Error("Failed to store file")
+				// Small file - use direct upload
+				data, err := os.ReadFile(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to read file: %w", err)
+				}
+
+				// Create file
+				createResp, err := client.CreateFile(ctx, &protocol.CreateFileRequest{
+					Path: fileID,
+					Mode: uint32(fileInfo.Mode()),
+				})
+				if err != nil {
+					return fmt.Errorf("failed to create file: %w", err)
+				}
+				if !createResp.Success {
+					return fmt.Errorf("failed to create file: %s", createResp.Message)
+				}
+
+				// Write file
+				writeResp, err := client.WriteFile(ctx, &protocol.WriteFileRequest{
+					Path: fileID,
+					Data: data,
+					Offset: 0,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to write file: %w", err)
+				}
+
+				if writeResp.Success {
+					logger.Info("File stored successfully",
+						zap.String("file_id", fileID),
+						zap.Int64("bytes", writeResp.BytesWritten))
+				} else {
+					return fmt.Errorf("write failed: %s", writeResp.Message)
+				}
 			}
 
 			return nil
@@ -382,32 +521,94 @@ func retrieveCmd() *cobra.Command {
 			client := protocol.NewCoordinatorClient(conn)
 			ctx := context.Background()
 
-			// Retrieve file
-			resp, err := client.RetrieveFile(ctx, &protocol.RetrieveFileRequest{
-				FileId: fileID,
+			// Try streaming first for large files
+			stream, err := client.ReadFileStream(ctx, &protocol.ReadFileStreamRequest{
+				Path: fileID,
+				Offset: 0,
+				Length: 0, // Get entire file
 			})
-
+			
 			if err != nil {
-				return fmt.Errorf("failed to retrieve file: %w", err)
+				// Fallback to non-streaming for small files
+				resp, err := client.ReadFile(ctx, &protocol.ReadFileRequest{
+					Path: fileID,
+					Offset: 0,
+					Length: 0,
+				})
+				
+				if err != nil {
+					return fmt.Errorf("failed to retrieve file: %w", err)
+				}
+				
+				if !resp.Success {
+					return fmt.Errorf("file not found")
+				}
+				
+				// Write to output file
+				if err := os.WriteFile(outputPath, resp.Data, 0644); err != nil {
+					return fmt.Errorf("failed to write output file: %w", err)
+				}
+				
+				logger.Info("File retrieved successfully",
+					zap.String("file_id", fileID),
+					zap.String("output", outputPath),
+					zap.Int64("size", resp.BytesRead))
+				
+				return nil
 			}
-
-			if !resp.Success {
-				return fmt.Errorf("file not found or retrieval failed")
+			
+			// Handle streaming response
+			outputFile, err := os.Create(outputPath)
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %w", err)
 			}
-
-			// Write to output file
-			if outputPath == "" {
-				outputPath = resp.Metadata.Filename
+			defer outputFile.Close()
+			
+			var totalBytes int64
+			var totalSize int64
+			headerReceived := false
+			
+			for {
+				resp, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return fmt.Errorf("failed to receive stream: %w", err)
+				}
+				
+				switch data := resp.Data.(type) {
+				case *protocol.ReadFileStreamResponse_Header:
+					headerReceived = true
+					totalSize = data.Header.TotalSize
+					logger.Info("Starting streaming download",
+						zap.Int64("total_size", totalSize),
+						zap.Int32("chunk_count", data.Header.ChunkCount))
+						
+				case *protocol.ReadFileStreamResponse_ChunkData:
+					if !headerReceived {
+						return fmt.Errorf("received data before header")
+					}
+					n, err := outputFile.Write(data.ChunkData)
+					if err != nil {
+						return fmt.Errorf("failed to write chunk: %w", err)
+					}
+					totalBytes += int64(n)
+					
+					// Progress reporting
+					if totalSize > 0 && totalBytes % (10 * 1024 * 1024) == 0 {
+						logger.Info("Download progress",
+							zap.Int64("received", totalBytes),
+							zap.Int64("total", totalSize),
+							zap.Float64("percent", float64(totalBytes)/float64(totalSize)*100))
+					}
+				}
 			}
-
-			if err := os.WriteFile(outputPath, resp.Data, 0644); err != nil {
-				return fmt.Errorf("failed to write output file: %w", err)
-			}
-
-			logger.Info("File retrieved successfully",
+			
+			logger.Info("File retrieved successfully via streaming",
 				zap.String("file_id", fileID),
 				zap.String("output", outputPath),
-				zap.Int64("size", int64(len(resp.Data))))
+				zap.Int64("size", totalBytes))
 
 			return nil
 		},
@@ -581,6 +782,9 @@ func statusCmd() *cobra.Command {
 				fmt.Println(noNodesBox)
 			}
 
+			// Show data tree panel
+			dataTreePanel := createDataTreePanel(client, ctx)
+			fmt.Println(dataTreePanel)
 				
 			// Show collective summary table
 			summaryTable := createSummaryTable(statusResp)
@@ -1270,9 +1474,8 @@ func mountCmd() *cobra.Command {
 }
 
 func mountCollectiveFS(coordinatorAddr, mountpoint string, logger *zap.Logger) error {
-	// FUSE mounting is not supported on Windows
-	// This would work on Linux/Mac with proper FUSE implementation
-	return fmt.Errorf("FUSE mounting is not supported on this platform")
+	// Create and mount the FUSE filesystem
+	return collectivefuse.Mount(coordinatorAddr, mountpoint, logger)
 }
 
 // outputStatusAsJSON outputs a comprehensive JSON status of the entire collective
@@ -1311,17 +1514,6 @@ func outputStatusAsJSON(statusResp *protocol.GetStatusResponse, hbResp *protocol
 		},
 		"network": map[string]interface{}{
 			"coordinator_connectivity": buildNetworkInfo(coordinatorAddr),
-		},
-		"system_state": map[string]interface{}{
-			"phase":             "3", // Current phase (FUSE integration complete)
-			"features_enabled": []string{
-				"coordinator_peering",
-				"node_registration", 
-				"directory_operations",
-				"fuse_mounting",
-				"file_metadata",
-			},
-			"next_milestone": "chunk_based_file_storage",
 		},
 		"debug_info": map[string]interface{}{
 			"coordinator_version": "0.1.0",

@@ -1,0 +1,11 @@
+{
+  "mode": "coordinator",
+  "member_id": "alice",
+  "coordinator": {
+    "address": ":8001",
+    "data_dir": "./data/alice-coord"
+  },
+  "auth": {
+    "enabled": false
+  }
+}

@@ -10,12 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"collective/pkg/auth"
 	"collective/pkg/config"
 	"collective/pkg/protocol"
 	"collective/pkg/types"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type Node struct {
@@ -28,6 +30,7 @@ type Node struct {
 	totalCapacity      int64
 	usedCapacity       int64
 	logger             *zap.Logger
+	authConfig         *auth.AuthConfig
 	
 	// Coordinator connection
 	coordinatorAddress string
@@ -46,6 +49,10 @@ type Node struct {
 }
 
 func New(cfg *config.NodeConfig, memberID string, logger *zap.Logger) *Node {
+	return NewWithAuth(cfg, memberID, logger, nil)
+}
+
+func NewWithAuth(cfg *config.NodeConfig, memberID string, logger *zap.Logger, authConfig *auth.AuthConfig) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 	
 	return &Node{
@@ -56,6 +63,7 @@ func New(cfg *config.NodeConfig, memberID string, logger *zap.Logger) *Node {
 		totalCapacity:      cfg.StorageCapacity,
 		usedCapacity:       0,
 		logger:             logger,
+		authConfig:         authConfig,
 		coordinatorAddress: cfg.CoordinatorAddress,
 		chunks:             make(map[types.ChunkID]*types.Chunk),
 		ctx:                ctx,
@@ -88,7 +96,32 @@ func (n *Node) Start() error {
 	}
 	
 	n.listener = listener
-	n.server = grpc.NewServer()
+	
+	// Create gRPC server with authentication if configured
+	var serverOpts []grpc.ServerOption
+	
+	if n.authConfig != nil && n.authConfig.Enabled {
+		// Create TLS configuration
+		tlsBuilder, err := auth.NewTLSConfigBuilder(n.authConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create TLS config: %w", err)
+		}
+		
+		tlsConfig, err := tlsBuilder.BuildServerConfig()
+		if err != nil {
+			return fmt.Errorf("failed to build server TLS config: %w", err)
+		}
+		
+		if tlsConfig != nil {
+			creds := credentials.NewTLS(tlsConfig)
+			serverOpts = append(serverOpts, grpc.Creds(creds))
+			n.logger.Info("TLS enabled for node", 
+				zap.String("node_id", string(n.nodeID)),
+				zap.String("member_id", string(n.memberID)))
+		}
+	}
+	
+	n.server = grpc.NewServer(serverOpts...)
 	protocol.RegisterNodeServer(n.server, n)
 	
 	// Connect to coordinator
@@ -107,7 +140,8 @@ func (n *Node) Start() error {
 		zap.String("coordinator", n.coordinatorAddress))
 	
 	// Start background tasks
-	go n.healthReportLoop()
+	go n.enhancedHealthReportLoop()  // Use enhanced version with heartbeat
+	go n.MonitorCoordinatorConnection()  // Monitor and reconnect if needed
 	
 	return n.server.Serve(listener)
 }
@@ -127,7 +161,31 @@ func (n *Node) Stop() {
 }
 
 func (n *Node) connectToCoordinator() error {
-	conn, err := grpc.Dial(n.coordinatorAddress, grpc.WithInsecure())
+	var dialOpts []grpc.DialOption
+	
+	if n.authConfig != nil && n.authConfig.Enabled {
+		// Create TLS configuration for client
+		tlsBuilder, err := auth.NewTLSConfigBuilder(n.authConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create TLS config: %w", err)
+		}
+		
+		tlsConfig, err := tlsBuilder.BuildClientConfig()
+		if err != nil {
+			return fmt.Errorf("failed to build client TLS config: %w", err)
+		}
+		
+		if tlsConfig != nil {
+			creds := credentials.NewTLS(tlsConfig)
+			dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
+			n.logger.Info("Connecting to coordinator with TLS",
+				zap.String("coordinator", n.coordinatorAddress))
+		}
+	} else {
+		dialOpts = append(dialOpts, grpc.WithInsecure())
+	}
+	
+	conn, err := grpc.Dial(n.coordinatorAddress, dialOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to coordinator: %w", err)
 	}

@@ -1,0 +1,14 @@
+{
+  "mode": "node",
+  "member_id": "alice",
+  "node": {
+    "node_id": "alice-node-02",
+    "address": ":7002",
+    "coordinator_address": "localhost:8001",
+    "storage_capacity": "100GB",
+    "data_dir": "./data/alice-node-02"
+  },
+  "auth": {
+    "enabled": false
+  }
+}

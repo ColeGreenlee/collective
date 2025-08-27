@@ -28,6 +28,10 @@ service Coordinator {
   rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
   rpc WriteFile(WriteFileRequest) returns (WriteFileResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  
+  // Streaming operations for large files
+  rpc WriteFileStream(stream WriteFileStreamRequest) returns (WriteFileStreamResponse);
+  rpc ReadFileStream(ReadFileStreamRequest) returns (stream ReadFileStreamResponse);
 }
 
 message GetStatusRequest {}
@@ -102,11 +106,13 @@ message NodeInfo {
 message HeartbeatRequest {
   string member_id = 1;
   int64 timestamp = 2;
+  NodeInfo node_info = 3;  // Optional: for node heartbeats
 }
 
 message HeartbeatResponse {
   string member_id = 1;
   int64 timestamp = 2;
+  bool success = 3;  // Indicates if node is registered/recognized
 }
 
 message StoreFileRequest {
@@ -271,4 +277,42 @@ message DeleteFileRequest {
 message DeleteFileResponse {
   bool success = 1;
   string message = 2;
+}
+
+// Streaming messages for large file operations
+message WriteFileStreamRequest {
+  oneof data {
+    WriteFileStreamHeader header = 1;
+    bytes chunk_data = 2;
+  }
+}
+
+message WriteFileStreamHeader {
+  string path = 1;
+  int64 total_size = 2;
+}
+
+message WriteFileStreamResponse {
+  bool success = 1;
+  int64 bytes_written = 2;
+  string message = 3;
+  int32 chunks_created = 4;
+}
+
+message ReadFileStreamRequest {
+  string path = 1;
+  int64 offset = 2;
+  int64 length = 3;
+}
+
+message ReadFileStreamResponse {
+  oneof data {
+    ReadFileStreamHeader header = 1;
+    bytes chunk_data = 2;
+  }
+}
+
+message ReadFileStreamHeader {
+  int64 total_size = 1;
+  int32 chunk_count = 2;
 }

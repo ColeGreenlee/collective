@@ -5,292 +5,276 @@ services:
   alice-coordinator:
     build: .
     container_name: alice-coordinator
-    command: ["coordinator", "-c", "/app/configs/docker/alice-coordinator.json"]
-    volumes:
-      - alice-coord-data:/data
-      - ./data/configs:/app/configs:ro
+    hostname: alice-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=alice-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+    command: ["coordinator", "--member-id", "alice", "--address", ":8001"]
     ports:
       - "8001:8001"
-    networks:
-      - collective-net
-    restart: unless-stopped
-
-  # Alice's nodes (5 nodes, 1GB each)
-  alice-node-01:
-    build: .
-    container_name: alice-node-01
-    command: ["node", "-c", "/app/configs/docker/alice-node-01.json"]
     volumes:
-      - alice-node-01-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7001:7001"
+      - certs:/collective/certs
+      - alice-coord-data:/data
     networks:
       - collective-net
-    depends_on:
-      - alice-coordinator
-    restart: unless-stopped
-
-  alice-node-02:
-    build: .
-    container_name: alice-node-02
-    command: ["node", "-c", "/app/configs/docker/alice-node-02.json"]
-    volumes:
-      - alice-node-02-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7002:7002"
-    networks:
-      - collective-net
-    depends_on:
-      - alice-coordinator
-    restart: unless-stopped
-
-  alice-node-03:
-    build: .
-    container_name: alice-node-03
-    command: ["node", "-c", "/app/configs/docker/alice-node-03.json"]
-    volumes:
-      - alice-node-03-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7003:7003"
-    networks:
-      - collective-net
-    depends_on:
-      - alice-coordinator
-    restart: unless-stopped
-
-  alice-node-04:
-    build: .
-    container_name: alice-node-04
-    command: ["node", "-c", "/app/configs/docker/alice-node-04.json"]
-    volumes:
-      - alice-node-04-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7004:7004"
-    networks:
-      - collective-net
-    depends_on:
-      - alice-coordinator
-    restart: unless-stopped
-
-  alice-node-05:
-    build: .
-    container_name: alice-node-05
-    command: ["node", "-c", "/app/configs/docker/alice-node-05.json"]
-    volumes:
-      - alice-node-05-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7005:7005"
-    networks:
-      - collective-net
-    depends_on:
-      - alice-coordinator
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Bob's coordinator
   bob-coordinator:
     build: .
     container_name: bob-coordinator
-    command: ["coordinator", "-c", "/app/configs/docker/bob-coordinator.json"]
+    hostname: bob-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=bob-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+    command: ["coordinator", "--member-id", "bob", "--address", ":8001"]
+    ports:
+      - "8002:8001"
     volumes:
+      - certs:/collective/certs
       - bob-coord-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "8002:8002"
     networks:
       - collective-net
-    restart: unless-stopped
-
-  # Bob's nodes (5 nodes, 1GB each)
-  bob-node-01:
-    build: .
-    container_name: bob-node-01
-    command: ["node", "-c", "/app/configs/docker/bob-node-01.json"]
-    volumes:
-      - bob-node-01-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7006:7006"
-    networks:
-      - collective-net
-    depends_on:
-      - bob-coordinator
-    restart: unless-stopped
-
-  bob-node-02:
-    build: .
-    container_name: bob-node-02
-    command: ["node", "-c", "/app/configs/docker/bob-node-02.json"]
-    volumes:
-      - bob-node-02-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7007:7007"
-    networks:
-      - collective-net
-    depends_on:
-      - bob-coordinator
-    restart: unless-stopped
-
-  bob-node-03:
-    build: .
-    container_name: bob-node-03
-    command: ["node", "-c", "/app/configs/docker/bob-node-03.json"]
-    volumes:
-      - bob-node-03-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7008:7008"
-    networks:
-      - collective-net
-    depends_on:
-      - bob-coordinator
-    restart: unless-stopped
-
-  bob-node-04:
-    build: .
-    container_name: bob-node-04
-    command: ["node", "-c", "/app/configs/docker/bob-node-04.json"]
-    volumes:
-      - bob-node-04-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7009:7009"
-    networks:
-      - collective-net
-    depends_on:
-      - bob-coordinator
-    restart: unless-stopped
-
-  bob-node-05:
-    build: .
-    container_name: bob-node-05
-    command: ["node", "-c", "/app/configs/docker/bob-node-05.json"]
-    volumes:
-      - bob-node-05-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7010:7010"
-    networks:
-      - collective-net
-    depends_on:
-      - bob-coordinator
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Carol's coordinator
   carol-coordinator:
     build: .
     container_name: carol-coordinator
-    command: ["coordinator", "-c", "/app/configs/docker/carol-coordinator.json"]
-    volumes:
-      - carol-coord-data:/data
-      - ./data/configs:/app/configs:ro
+    hostname: carol-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=carol-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+    command: ["coordinator", "--member-id", "carol", "--address", ":8001"]
     ports:
-      - "8003:8003"
+      - "8003:8001"
+    volumes:
+      - certs:/collective/certs
+      - carol-coord-data:/data
     networks:
       - collective-net
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Carol's nodes (5 nodes, 1GB each)
+  # Alice's nodes
+  alice-node-01:
+    build: .
+    container_name: alice-node-01
+    hostname: alice-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824  # 1GB
+    command: ["node", "--member-id", "alice", "--node-id", "alice-node-01"]
+    depends_on:
+      - alice-coordinator
+    volumes:
+      - certs:/collective/certs
+      - alice-node-01-data:/data
+    networks:
+      - collective-net
+
+  alice-node-02:
+    build: .
+    container_name: alice-node-02
+    hostname: alice-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "alice", "--node-id", "alice-node-02"]
+    depends_on:
+      - alice-coordinator
+    volumes:
+      - certs:/collective/certs
+      - alice-node-02-data:/data
+    networks:
+      - collective-net
+
+  alice-node-03:
+    build: .
+    container_name: alice-node-03
+    hostname: alice-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "alice", "--node-id", "alice-node-03"]
+    depends_on:
+      - alice-coordinator
+    volumes:
+      - certs:/collective/certs
+      - alice-node-03-data:/data
+    networks:
+      - collective-net
+
+  # Bob's nodes
+  bob-node-01:
+    build: .
+    container_name: bob-node-01
+    hostname: bob-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "bob", "--node-id", "bob-node-01"]
+    depends_on:
+      - bob-coordinator
+    volumes:
+      - certs:/collective/certs
+      - bob-node-01-data:/data
+    networks:
+      - collective-net
+
+  bob-node-02:
+    build: .
+    container_name: bob-node-02
+    hostname: bob-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "bob", "--node-id", "bob-node-02"]
+    depends_on:
+      - bob-coordinator
+    volumes:
+      - certs:/collective/certs
+      - bob-node-02-data:/data
+    networks:
+      - collective-net
+
+  bob-node-03:
+    build: .
+    container_name: bob-node-03
+    hostname: bob-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "bob", "--node-id", "bob-node-03"]
+    depends_on:
+      - bob-coordinator
+    volumes:
+      - certs:/collective/certs
+      - bob-node-03-data:/data
+    networks:
+      - collective-net
+
+  # Carol's nodes
   carol-node-01:
     build: .
     container_name: carol-node-01
-    command: ["node", "-c", "/app/configs/docker/carol-node-01.json"]
-    volumes:
-      - carol-node-01-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7011:7011"
-    networks:
-      - collective-net
+    hostname: carol-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "carol", "--node-id", "carol-node-01"]
     depends_on:
       - carol-coordinator
-    restart: unless-stopped
+    volumes:
+      - certs:/collective/certs
+      - carol-node-01-data:/data
+    networks:
+      - collective-net
 
   carol-node-02:
     build: .
     container_name: carol-node-02
-    command: ["node", "-c", "/app/configs/docker/carol-node-02.json"]
-    volumes:
-      - carol-node-02-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7012:7012"
-    networks:
-      - collective-net
+    hostname: carol-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "carol", "--node-id", "carol-node-02"]
     depends_on:
       - carol-coordinator
-    restart: unless-stopped
+    volumes:
+      - certs:/collective/certs
+      - carol-node-02-data:/data
+    networks:
+      - collective-net
 
   carol-node-03:
     build: .
     container_name: carol-node-03
-    command: ["node", "-c", "/app/configs/docker/carol-node-03.json"]
+    hostname: carol-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=1073741824
+    command: ["node", "--member-id", "carol", "--node-id", "carol-node-03"]
+    depends_on:
+      - carol-coordinator
     volumes:
+      - certs:/collective/certs
       - carol-node-03-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7013:7013"
     networks:
       - collective-net
-    depends_on:
-      - carol-coordinator
-    restart: unless-stopped
 
-  carol-node-04:
-    build: .
-    container_name: carol-node-04
-    command: ["node", "-c", "/app/configs/docker/carol-node-04.json"]
-    volumes:
-      - carol-node-04-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7014:7014"
-    networks:
-      - collective-net
-    depends_on:
-      - carol-coordinator
-    restart: unless-stopped
-
-  carol-node-05:
-    build: .
-    container_name: carol-node-05
-    command: ["node", "-c", "/app/configs/docker/carol-node-05.json"]
-    volumes:
-      - carol-node-05-data:/data
-      - ./data/configs:/app/configs:ro
-    ports:
-      - "7015:7015"
-    networks:
-      - collective-net
-    depends_on:
-      - carol-coordinator
-    restart: unless-stopped
+volumes:
+  # Shared certificate volume for all containers
+  certs:
+    driver: local
+  
+  # Individual data volumes for each component
+  alice-coord-data:
+  bob-coord-data:
+  carol-coord-data:
+  alice-node-01-data:
+  alice-node-02-data:
+  alice-node-03-data:
+  bob-node-01-data:
+  bob-node-02-data:
+  bob-node-03-data:
+  carol-node-01-data:
+  carol-node-02-data:
+  carol-node-03-data:
 
 networks:
   collective-net:
     driver: bridge
-
-volumes:
-  alice-coord-data:
-  alice-node-01-data:
-  alice-node-02-data:
-  alice-node-03-data:
-  alice-node-04-data:
-  alice-node-05-data:
-  bob-coord-data:
-  bob-node-01-data:
-  bob-node-02-data:
-  bob-node-03-data:
-  bob-node-04-data:
-  bob-node-05-data:
-  carol-coord-data:
-  carol-node-01-data:
-  carol-node-02-data:
-  carol-node-03-data:
-  carol-node-04-data:
-  carol-node-05-data:
