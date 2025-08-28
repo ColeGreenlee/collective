@@ -10,10 +10,8 @@ import (
 	"time"
 
 	"collective/pkg/auth"
-	"collective/pkg/config"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 )
@@ -30,8 +28,9 @@ var GlobalPool = &ConnectionPool{
 	connections: make(map[string]*grpc.ClientConn),
 }
 
-// SecureDialWithContext creates a secure gRPC connection using the current auth context
-func SecureDialWithContext(ctx context.Context, target string, configCtx *config.Context) (*grpc.ClientConn, error) {
+
+// SecureDialWithCerts creates a secure gRPC connection using individual certificate paths
+func SecureDialWithCerts(ctx context.Context, target, caPath, certPath, keyPath string) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                10 * time.Second,
@@ -40,18 +39,13 @@ func SecureDialWithContext(ctx context.Context, target string, configCtx *config
 		}),
 	}
 
-	// If we have a valid auth context with certificates, use TLS
-	if configCtx != nil && configCtx.Auth.CertPath != "" && configCtx.Auth.KeyPath != "" && !configCtx.Auth.Insecure {
-		tlsConfig, err := createTLSConfig(configCtx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create TLS config: %w", err)
-		}
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
-	} else {
-		// Fallback to insecure for backward compatibility
-		// TODO: Make this configurable or remove once all clients are updated
-		opts = append(opts, grpc.WithInsecure())
+	// Create TLS configuration from individual certificate files
+	tlsConfig, err := createTLSConfigFromFiles(caPath, certPath, keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TLS config from files: %w", err)
 	}
+	
+	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 
 	conn, err := grpc.DialContext(ctx, target, opts...)
 	if err != nil {
@@ -61,41 +55,6 @@ func SecureDialWithContext(ctx context.Context, target string, configCtx *config
 	return conn, nil
 }
 
-// SecureDial creates a secure connection without specific context (uses default)
-func SecureDial(target string) (*grpc.ClientConn, error) {
-	return SecureDialWithContext(context.Background(), target, nil)
-}
-
-// GetPooledConnection returns a connection from the pool or creates a new one
-func (p *ConnectionPool) GetPooledConnection(ctx context.Context, target string, configCtx *config.Context) (*grpc.ClientConn, error) {
-	p.mutex.RLock()
-	conn, exists := p.connections[target]
-	p.mutex.RUnlock()
-
-	if exists && conn.GetState() != connectivity.Shutdown {
-		return conn, nil
-	}
-
-	// Create new connection
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	// Double-check after acquiring write lock
-	conn, exists = p.connections[target]
-	if exists && conn.GetState() != connectivity.Shutdown {
-		return conn, nil
-	}
-
-	// Create new secure connection
-	newConn, err := SecureDialWithContext(ctx, target, configCtx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Store in pool
-	p.connections[target] = newConn
-	return newConn, nil
-}
 
 // CloseAll closes all connections in the pool
 func (p *ConnectionPool) CloseAll() {
@@ -108,10 +67,11 @@ func (p *ConnectionPool) CloseAll() {
 	p.connections = make(map[string]*grpc.ClientConn)
 }
 
-// createTLSConfig creates a TLS configuration from the context
-func createTLSConfig(configCtx *config.Context) (*tls.Config, error) {
+
+// createTLSConfigFromFiles creates a TLS configuration from individual certificate file paths
+func createTLSConfigFromFiles(caPath, certPath, keyPath string) (*tls.Config, error) {
 	// Load client certificate
-	cert, err := tls.LoadX509KeyPair(configCtx.Auth.CertPath, configCtx.Auth.KeyPath)
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load client certificate: %w", err)
 	}
@@ -122,10 +82,9 @@ func createTLSConfig(configCtx *config.Context) (*tls.Config, error) {
 		MinVersion:   tls.VersionTLS12,
 	}
 
-	// If we have a CA cert, use it for server verification
-	if configCtx.Auth.CAPath != "" {
-		// Load CA certificate manually
-		caCertPEM, err := os.ReadFile(configCtx.Auth.CAPath)
+	// Load CA certificate for server verification
+	if caPath != "" {
+		caCertPEM, err := os.ReadFile(caPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read CA certificate: %w", err)
 		}

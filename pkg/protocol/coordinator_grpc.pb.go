@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.21.12
-// source: proto/coordinator.proto
+// source: coordinator.proto
 
 package protocol
 
@@ -19,27 +19,30 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Coordinator_PeerConnect_FullMethodName     = "/collective.proto.Coordinator/PeerConnect"
-	Coordinator_PeerDisconnect_FullMethodName  = "/collective.proto.Coordinator/PeerDisconnect"
-	Coordinator_ShareNodeList_FullMethodName   = "/collective.proto.Coordinator/ShareNodeList"
-	Coordinator_Heartbeat_FullMethodName       = "/collective.proto.Coordinator/Heartbeat"
-	Coordinator_StoreFile_FullMethodName       = "/collective.proto.Coordinator/StoreFile"
-	Coordinator_RetrieveFile_FullMethodName    = "/collective.proto.Coordinator/RetrieveFile"
-	Coordinator_UpdateMetadata_FullMethodName  = "/collective.proto.Coordinator/UpdateMetadata"
-	Coordinator_RegisterNode_FullMethodName    = "/collective.proto.Coordinator/RegisterNode"
-	Coordinator_GetStatus_FullMethodName       = "/collective.proto.Coordinator/GetStatus"
-	Coordinator_SyncState_FullMethodName       = "/collective.proto.Coordinator/SyncState"
-	Coordinator_CreateDirectory_FullMethodName = "/collective.proto.Coordinator/CreateDirectory"
-	Coordinator_ListDirectory_FullMethodName   = "/collective.proto.Coordinator/ListDirectory"
-	Coordinator_DeleteDirectory_FullMethodName = "/collective.proto.Coordinator/DeleteDirectory"
-	Coordinator_StatEntry_FullMethodName       = "/collective.proto.Coordinator/StatEntry"
-	Coordinator_MoveEntry_FullMethodName       = "/collective.proto.Coordinator/MoveEntry"
-	Coordinator_CreateFile_FullMethodName      = "/collective.proto.Coordinator/CreateFile"
-	Coordinator_ReadFile_FullMethodName        = "/collective.proto.Coordinator/ReadFile"
-	Coordinator_WriteFile_FullMethodName       = "/collective.proto.Coordinator/WriteFile"
-	Coordinator_DeleteFile_FullMethodName      = "/collective.proto.Coordinator/DeleteFile"
-	Coordinator_WriteFileStream_FullMethodName = "/collective.proto.Coordinator/WriteFileStream"
-	Coordinator_ReadFileStream_FullMethodName  = "/collective.proto.Coordinator/ReadFileStream"
+	Coordinator_PeerConnect_FullMethodName              = "/collective.proto.Coordinator/PeerConnect"
+	Coordinator_PeerDisconnect_FullMethodName           = "/collective.proto.Coordinator/PeerDisconnect"
+	Coordinator_ShareNodeList_FullMethodName            = "/collective.proto.Coordinator/ShareNodeList"
+	Coordinator_Heartbeat_FullMethodName                = "/collective.proto.Coordinator/Heartbeat"
+	Coordinator_StoreFile_FullMethodName                = "/collective.proto.Coordinator/StoreFile"
+	Coordinator_RetrieveFile_FullMethodName             = "/collective.proto.Coordinator/RetrieveFile"
+	Coordinator_UpdateMetadata_FullMethodName           = "/collective.proto.Coordinator/UpdateMetadata"
+	Coordinator_RegisterNode_FullMethodName             = "/collective.proto.Coordinator/RegisterNode"
+	Coordinator_GetStatus_FullMethodName                = "/collective.proto.Coordinator/GetStatus"
+	Coordinator_SyncState_FullMethodName                = "/collective.proto.Coordinator/SyncState"
+	Coordinator_CreateDirectory_FullMethodName          = "/collective.proto.Coordinator/CreateDirectory"
+	Coordinator_ListDirectory_FullMethodName            = "/collective.proto.Coordinator/ListDirectory"
+	Coordinator_DeleteDirectory_FullMethodName          = "/collective.proto.Coordinator/DeleteDirectory"
+	Coordinator_StatEntry_FullMethodName                = "/collective.proto.Coordinator/StatEntry"
+	Coordinator_MoveEntry_FullMethodName                = "/collective.proto.Coordinator/MoveEntry"
+	Coordinator_CreateFile_FullMethodName               = "/collective.proto.Coordinator/CreateFile"
+	Coordinator_ReadFile_FullMethodName                 = "/collective.proto.Coordinator/ReadFile"
+	Coordinator_WriteFile_FullMethodName                = "/collective.proto.Coordinator/WriteFile"
+	Coordinator_DeleteFile_FullMethodName               = "/collective.proto.Coordinator/DeleteFile"
+	Coordinator_WriteFileStream_FullMethodName          = "/collective.proto.Coordinator/WriteFileStream"
+	Coordinator_ReadFileStream_FullMethodName           = "/collective.proto.Coordinator/ReadFileStream"
+	Coordinator_GetFederationCA_FullMethodName          = "/collective.proto.Coordinator/GetFederationCA"
+	Coordinator_RequestClientCertificate_FullMethodName = "/collective.proto.Coordinator/RequestClientCertificate"
+	Coordinator_GenerateInvite_FullMethodName           = "/collective.proto.Coordinator/GenerateInvite"
 )
 
 // CoordinatorClient is the client API for Coordinator service.
@@ -70,6 +73,11 @@ type CoordinatorClient interface {
 	// Streaming operations for large files
 	WriteFileStream(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[WriteFileStreamRequest, WriteFileStreamResponse], error)
 	ReadFileStream(ctx context.Context, in *ReadFileStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ReadFileStreamResponse], error)
+	// Federation certificate management
+	GetFederationCA(ctx context.Context, in *GetFederationCARequest, opts ...grpc.CallOption) (*GetFederationCAResponse, error)
+	RequestClientCertificate(ctx context.Context, in *RequestClientCertificateRequest, opts ...grpc.CallOption) (*RequestClientCertificateResponse, error)
+	// Invite management
+	GenerateInvite(ctx context.Context, in *GenerateInviteRequest, opts ...grpc.CallOption) (*GenerateInviteResponse, error)
 }
 
 type coordinatorClient struct {
@@ -302,6 +310,36 @@ func (c *coordinatorClient) ReadFileStream(ctx context.Context, in *ReadFileStre
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Coordinator_ReadFileStreamClient = grpc.ServerStreamingClient[ReadFileStreamResponse]
 
+func (c *coordinatorClient) GetFederationCA(ctx context.Context, in *GetFederationCARequest, opts ...grpc.CallOption) (*GetFederationCAResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetFederationCAResponse)
+	err := c.cc.Invoke(ctx, Coordinator_GetFederationCA_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coordinatorClient) RequestClientCertificate(ctx context.Context, in *RequestClientCertificateRequest, opts ...grpc.CallOption) (*RequestClientCertificateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestClientCertificateResponse)
+	err := c.cc.Invoke(ctx, Coordinator_RequestClientCertificate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coordinatorClient) GenerateInvite(ctx context.Context, in *GenerateInviteRequest, opts ...grpc.CallOption) (*GenerateInviteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GenerateInviteResponse)
+	err := c.cc.Invoke(ctx, Coordinator_GenerateInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CoordinatorServer is the server API for Coordinator service.
 // All implementations must embed UnimplementedCoordinatorServer
 // for forward compatibility.
@@ -330,6 +368,11 @@ type CoordinatorServer interface {
 	// Streaming operations for large files
 	WriteFileStream(grpc.ClientStreamingServer[WriteFileStreamRequest, WriteFileStreamResponse]) error
 	ReadFileStream(*ReadFileStreamRequest, grpc.ServerStreamingServer[ReadFileStreamResponse]) error
+	// Federation certificate management
+	GetFederationCA(context.Context, *GetFederationCARequest) (*GetFederationCAResponse, error)
+	RequestClientCertificate(context.Context, *RequestClientCertificateRequest) (*RequestClientCertificateResponse, error)
+	// Invite management
+	GenerateInvite(context.Context, *GenerateInviteRequest) (*GenerateInviteResponse, error)
 	mustEmbedUnimplementedCoordinatorServer()
 }
 
@@ -402,6 +445,15 @@ func (UnimplementedCoordinatorServer) WriteFileStream(grpc.ClientStreamingServer
 }
 func (UnimplementedCoordinatorServer) ReadFileStream(*ReadFileStreamRequest, grpc.ServerStreamingServer[ReadFileStreamResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method ReadFileStream not implemented")
+}
+func (UnimplementedCoordinatorServer) GetFederationCA(context.Context, *GetFederationCARequest) (*GetFederationCAResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFederationCA not implemented")
+}
+func (UnimplementedCoordinatorServer) RequestClientCertificate(context.Context, *RequestClientCertificateRequest) (*RequestClientCertificateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestClientCertificate not implemented")
+}
+func (UnimplementedCoordinatorServer) GenerateInvite(context.Context, *GenerateInviteRequest) (*GenerateInviteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateInvite not implemented")
 }
 func (UnimplementedCoordinatorServer) mustEmbedUnimplementedCoordinatorServer() {}
 func (UnimplementedCoordinatorServer) testEmbeddedByValue()                     {}
@@ -784,6 +836,60 @@ func _Coordinator_ReadFileStream_Handler(srv interface{}, stream grpc.ServerStre
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Coordinator_ReadFileStreamServer = grpc.ServerStreamingServer[ReadFileStreamResponse]
 
+func _Coordinator_GetFederationCA_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFederationCARequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoordinatorServer).GetFederationCA(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Coordinator_GetFederationCA_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoordinatorServer).GetFederationCA(ctx, req.(*GetFederationCARequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Coordinator_RequestClientCertificate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestClientCertificateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoordinatorServer).RequestClientCertificate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Coordinator_RequestClientCertificate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoordinatorServer).RequestClientCertificate(ctx, req.(*RequestClientCertificateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Coordinator_GenerateInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateInviteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoordinatorServer).GenerateInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Coordinator_GenerateInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoordinatorServer).GenerateInvite(ctx, req.(*GenerateInviteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Coordinator_ServiceDesc is the grpc.ServiceDesc for Coordinator service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -867,6 +973,18 @@ var Coordinator_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "DeleteFile",
 			Handler:    _Coordinator_DeleteFile_Handler,
 		},
+		{
+			MethodName: "GetFederationCA",
+			Handler:    _Coordinator_GetFederationCA_Handler,
+		},
+		{
+			MethodName: "RequestClientCertificate",
+			Handler:    _Coordinator_RequestClientCertificate_Handler,
+		},
+		{
+			MethodName: "GenerateInvite",
+			Handler:    _Coordinator_GenerateInvite_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -880,5 +998,5 @@ var Coordinator_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "proto/coordinator.proto",
+	Metadata: "coordinator.proto",
 }

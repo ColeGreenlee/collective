@@ -26,23 +26,28 @@ make build
 
 ## Quick Start with Docker
 
-The fastest way to get started is using Docker Compose with our three-member test collective:
+The fastest way to get started is using Docker Compose with our federation example:
 
 ```bash
-# Start the test collective using pre-built images
-docker compose -f examples/three-member/docker-compose.yml up -d
+# Start a federated collective with three members
+cd examples/federation
+docker compose up -d --build
 
 # Check status of the collective
-./bin/collective status --coordinator alice:8001
+docker exec alice-coordinator collective status
 
 # View logs
-docker compose -f examples/three-member/docker-compose.yml logs -f
+docker compose logs -f
 
 # Stop all services
-docker compose -f examples/three-member/docker-compose.yml down
+docker compose down
 ```
 
-The Docker images are available at `ghcr.io/colegreenlee/collective:latest`
+For simpler testing without federation:
+```bash
+# Basic three-member setup
+docker compose -f examples/three-member/docker-compose.yml up -d
+```
 
 ## First-Time Client Setup
 
@@ -142,7 +147,8 @@ For local development, you can run a single-member collective:
 ### Multi-Member Setup
 
 For a production multi-member collective, see the examples in:
-- `examples/three-member/` - Local three-member test setup
+- `examples/federation/` - Full federation with three domains
+- `examples/three-member/` - Basic multi-member setup
 - `examples/homelab-peering/` - Cross-network homelab deployment
 
 ## Configuration
@@ -192,9 +198,74 @@ Configuration can be provided via JSON files or command-line flags.
 }
 ```
 
+## Federation Setup
+
+### Initialize Federation CA
+
+```bash
+# Generate root federation CA
+collective federation ca init --domain collective.local
+
+# Generate member CA
+collective federation ca sign-member --member alice --domain home.collective.local
+
+# Add trust for other members
+collective federation trust add --ca-file bob-ca.crt
+collective federation trust add --ca-file carol-ca.crt
+```
+
+### Create DataStores with Permissions
+
+```bash
+# Create a media datastore with smart placement
+collective federation datastore create /media \
+  --strategy media \
+  --owner alice@home.collective.local
+
+# Grant permissions to other members
+collective federation permission grant /media \
+  --to bob@garage.collective.local \
+  --rights read,write
+
+# Create federation-wide backup store
+collective federation datastore create /backup \
+  --strategy backup \
+  --owner bob@garage.collective.local
+  
+collective federation permission grant /backup \
+  --to "*@*.collective.local" \
+  --rights read,write
+```
+
+### Generate Invites for New Members
+
+```bash
+# Create an invite with specific permissions
+collective federation invite generate \
+  --grant "/shared:read+write" \
+  --max-uses 5 \
+  --validity 7d
+
+# Output: collective://join/abc123...xyz
+# Share this URL with new members
+```
+
+### Monitor Federation Health
+
+```bash
+# Check federation metrics
+curl http://localhost:9090/metrics | grep federation
+
+# Check cluster health
+curl http://localhost:9090/health
+
+# View gossip peers
+collective federation peers list
+```
+
 ## Next Steps
 
-- Explore the `examples/` directory for different deployment scenarios
-- Read the [Architecture documentation](ARCHITECTURE.md) to understand the system design
-- Check [Performance benchmarks](PERFORMANCE.md) for optimization tips
-- See [FUSE documentation](FUSE.md) for filesystem mounting details
+- Try the [Federation Example](../examples/federation/) for a full federated setup
+- Read the [Federation Guide](../FEDERATION_COMPLETE.md) for detailed federation features
+- Explore the [Architecture documentation](ARCHITECTURE.md) to understand the system design
+- Check the [FUSE documentation](FUSE.md) for filesystem mounting details

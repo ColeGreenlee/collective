@@ -5,12 +5,11 @@ import (
 	"time"
 
 	"collective/pkg/protocol"
+	"collective/pkg/shared"
 
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -117,42 +116,28 @@ func (n *Node) reconnectAndRegister() error {
 		n.coordinatorClient = nil
 	}
 
-	// Attempt to reconnect
-	retries := 3
-	for i := 0; i < retries; i++ {
-		conn, err := grpc.Dial(n.coordinatorAddress,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithBlock(),
-			grpc.WithTimeout(5*time.Second))
-
-		if err == nil {
-			n.coordinatorConn = conn
-			n.coordinatorClient = protocol.NewCoordinatorClient(conn)
-
-			// Now attempt registration
-			if err := n.registerWithCoordinator(); err != nil {
-				n.logger.Warn("Registration failed, will retry",
-					zap.Error(err),
-					zap.Int("attempt", i+1))
-				time.Sleep(ConnectionRetryInterval)
-				continue
-			}
-
-			n.logger.Info("Successfully reconnected and registered with coordinator")
-			return nil
-		}
-
-		n.logger.Warn("Failed to connect to coordinator, retrying",
-			zap.Error(err),
-			zap.Int("attempt", i+1),
-			zap.Int("max_retries", retries))
-
-		if i < retries-1 {
-			time.Sleep(ConnectionRetryInterval)
-		}
+	// Use shared connection utilities with retry logic
+	cm := shared.NewConnectionManager(n.authConfig)
+	conn, err := cm.ConnectWithRetry(n.coordinatorAddress, 3, ConnectionRetryInterval)
+	if err != nil {
+		return err
 	}
 
-	return status.Error(codes.Unavailable, "failed to reconnect to coordinator after retries")
+	// Update node's connection
+	if n.coordinatorConn != nil {
+		n.coordinatorConn.Close()
+	}
+	n.coordinatorConn = conn
+	n.coordinatorClient = protocol.NewCoordinatorClient(conn)
+
+	// Attempt registration
+	if err := n.registerWithCoordinator(); err != nil {
+		n.logger.Error("Registration failed after reconnection", zap.Error(err))
+		return err
+	}
+
+	n.logger.Info("Successfully reconnected and registered with coordinator")
+	return nil
 }
 
 // isRegistrationError checks if an error indicates the node needs to re-register

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,12 +15,15 @@ import (
 	"syscall"
 	"time"
 
+	"collective/pkg/auth"
 	"collective/pkg/client"
 	"collective/pkg/config"
 	"collective/pkg/coordinator"
+	"collective/pkg/federation"
 	collectivefuse "collective/pkg/fuse"
 	"collective/pkg/node"
 	"collective/pkg/protocol"
+	"collective/pkg/shared"
 	"collective/pkg/utils"
 
 	"github.com/charmbracelet/lipgloss"
@@ -28,49 +32,76 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
 	configFile string
 	verbose    bool
+	// Global certificate flags
+	globalCAPath   string
+	globalCertPath string
+	globalKeyPath  string
 )
 
-// getSecureConnection creates a secure gRPC connection using the current context
+// getSecureConnection creates a secure gRPC connection using global flags, federated config, or current context
 func getSecureConnection(coordinatorAddr string) (*grpc.ClientConn, error) {
-	// Try to load the current context for auth
+	// Priority 1: Check if global certificate flags are provided (manual override)
+	if globalCAPath != "" && globalCertPath != "" && globalKeyPath != "" {
+		// Use global certificate flags directly
+		return client.SecureDialWithCerts(context.Background(), coordinatorAddr, globalCAPath, globalCertPath, globalKeyPath)
+	}
+	
+	// Priority 2: Try unified configuration (federated collectives)
 	clientConfig, err := config.LoadClientConfig()
-	if err != nil || clientConfig == nil {
-		// Fallback to insecure connection if no context is configured
-		// This maintains backward compatibility
-		return grpc.Dial(coordinatorAddr, grpc.WithInsecure())
+	if err == nil && len(clientConfig.Collectives) > 0 {
+		connectionConfig, err := clientConfig.ResolveConnection(coordinatorAddr)
+		if err == nil {
+			// Update coordinatorAddr to the resolved address for consistent behavior
+			if coordinatorAddr == "" {
+				coordinatorAddr = connectionConfig.Coordinator
+			}
+			// Use federated connection configuration
+			if connectionConfig.CAPath != "" && connectionConfig.CertPath != "" && connectionConfig.KeyPath != "" {
+				return client.SecureDialWithCerts(context.Background(), connectionConfig.Coordinator, 
+					connectionConfig.CAPath, connectionConfig.CertPath, connectionConfig.KeyPath)
+			}
+		}
 	}
-
-	currentCtx, err := clientConfig.GetCurrentContext()
-	if err != nil || currentCtx == nil {
-		// Fallback to insecure connection
-		return grpc.Dial(coordinatorAddr, grpc.WithInsecure())
-	}
-
-	// Use secure connection with context
-	return client.SecureDialWithContext(context.Background(), coordinatorAddr, currentCtx)
+	
+	// Priority 3: Fallback to insecure connection (backward compatibility)
+	return grpc.Dial(coordinatorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
 // getSecureConnectionWithTimeout creates a secure gRPC connection with a timeout
+// This function is currently unused but kept for future use
 func getSecureConnectionWithTimeout(coordinatorAddr string, timeout time.Duration) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// Use the same connection logic as getSecureConnection but with timeout context
+	// Priority 1: Check if global certificate flags are provided
+	if globalCAPath != "" && globalCertPath != "" && globalKeyPath != "" {
+		return client.SecureDialWithCerts(ctx, coordinatorAddr, globalCAPath, globalCertPath, globalKeyPath)
+	}
+	
+	// Priority 2: Try unified configuration (federated collectives)
 	clientConfig, err := config.LoadClientConfig()
-	if err != nil || clientConfig == nil {
-		return grpc.DialContext(ctx, coordinatorAddr, grpc.WithInsecure(), grpc.WithBlock())
+	if err == nil && len(clientConfig.Collectives) > 0 {
+		connectionConfig, err := clientConfig.ResolveConnection(coordinatorAddr)
+		if err == nil && connectionConfig.CAPath != "" && connectionConfig.CertPath != "" && connectionConfig.KeyPath != "" {
+			return client.SecureDialWithCerts(ctx, connectionConfig.Coordinator, 
+				connectionConfig.CAPath, connectionConfig.CertPath, connectionConfig.KeyPath)
+		}
 	}
+	
+	// Priority 3: Fallback to insecure connection
+	return grpc.DialContext(ctx, coordinatorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+}
 
-	currentCtx, err := clientConfig.GetCurrentContext()
-	if err != nil || currentCtx == nil {
-		return grpc.DialContext(ctx, coordinatorAddr, grpc.WithInsecure(), grpc.WithBlock())
-	}
-
-	return client.SecureDialWithContext(ctx, coordinatorAddr, currentCtx)
+// getInsecureConnection creates an insecure gRPC connection (for initial CA certificate retrieval)
+func getInsecureConnection(coordinatorAddr string) (*grpc.ClientConn, error) {
+	return grpc.Dial(coordinatorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
 func min(a, b int) int {
@@ -90,23 +121,37 @@ Each member runs a coordinator that manages their storage nodes.`,
 
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file path")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
+	// Global certificate flags for TLS authentication
+	rootCmd.PersistentFlags().StringVar(&globalCAPath, "ca", "", "path to CA certificate")
+	rootCmd.PersistentFlags().StringVar(&globalCertPath, "cert", "", "path to client certificate")
+	rootCmd.PersistentFlags().StringVar(&globalKeyPath, "key", "", "path to client private key")
 
 	rootCmd.AddCommand(
+		// Core modes
 		coordinatorCmd(),
 		nodeCmd(),
-		clientCmd(),
-		peerCmd(),
-		versionCmd(),
-		enhancedStatusCmd(), // Use enhanced status command
-		mountCmd(),
-		mkdirCmd(),
+		
+		// File operations
 		lsCmd(),
+		mkdirCmd(),
 		rmCmd(),
 		mvCmd(),
-		cleanupCmd,
+		storeCmd(),
+		retrieveCmd(),
+		writeCmd(),
+		readCmd(),
+		mountCmd(),
+		
+		// Configuration & Setup
 		authCommand(),
-		initCommand(),
-		configCommand(),
+		identityCmd(), // Identity management
+		inviteCmd(), // Federation invites (moved from federation subcommand)
+		
+		// Monitoring
+		enhancedStatusCmd(),
+		
+		// Utilities
+		versionCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -149,6 +194,24 @@ func coordinatorCmd() *cobra.Command {
 						DataDir: dataDir,
 					},
 				}
+				
+				// Check for auto TLS configuration
+				if os.Getenv("COLLECTIVE_AUTO_TLS") == "true" {
+					componentID := os.Getenv("COLLECTIVE_COMPONENT_ID")
+					if componentID == "" {
+						componentID = fmt.Sprintf("%s-coordinator", memberID)
+					}
+					
+					cfg.Auth = &auth.AuthConfig{
+						Enabled:           true,
+						CAPath:            fmt.Sprintf("/collective/certs/ca/%s-ca.crt", memberID),
+						CertPath:          fmt.Sprintf("/collective/certs/coordinators/%s.crt", componentID),
+						KeyPath:           fmt.Sprintf("/collective/certs/coordinators/%s.key", componentID),
+						PeerVerification:  true,
+						RequireClientAuth: true,
+						MinTLSVersion:     "1.2",
+					}
+				}
 			}
 
 			// Parse bootstrap peers from command line (overrides config file)
@@ -172,13 +235,52 @@ func coordinatorCmd() *cobra.Command {
 				return fmt.Errorf("member ID is required")
 			}
 
+			// Check for federation mode
+			federationDomain := os.Getenv("COLLECTIVE_FEDERATION_DOMAIN")
+			logger.Info("Checking federation mode", zap.String("domain", federationDomain))
+			
 			// Create and start coordinator
 			var coord *coordinator.Coordinator
+			var federationCoord *coordinator.FederationCoordinator
+			
 			if cfg.Auth != nil && cfg.Auth.Enabled {
 				logger.Info("Starting coordinator with authentication enabled")
 				coord = coordinator.NewWithAuth(&cfg.Coordinator, cfg.MemberID, logger, cfg.Auth)
 			} else {
 				coord = coordinator.New(&cfg.Coordinator, cfg.MemberID, logger)
+			}
+			
+			// If federation is enabled, wrap the coordinator
+			if federationDomain != "" {
+				logger.Info("Federation enabled", zap.String("domain", federationDomain))
+				
+				// Create trust store and load federation CA if available
+				trustStore := federation.NewTrustStore()
+				federationCAPath := "/collective/federation/ca.crt"
+				if _, err := os.Stat(federationCAPath); err == nil {
+					if err := trustStore.LoadFederationRootCA(federationCAPath); err != nil {
+						logger.Warn("Failed to load federation root CA", zap.Error(err))
+					} else {
+						logger.Info("Loaded federation root CA")
+					}
+				}
+				
+				// Create federation coordinator
+				var err error
+				federationCoord, err = coordinator.NewFederationCoordinator(coord, federationDomain, trustStore)
+				if err != nil {
+					return fmt.Errorf("failed to create federation coordinator: %w", err)
+				}
+				
+				// Start federation services
+				bootstrapPeerAddrs := []string{}
+				for _, peer := range cfg.Coordinator.BootstrapPeers {
+					bootstrapPeerAddrs = append(bootstrapPeerAddrs, peer.Address)
+				}
+				
+				if err := federationCoord.StartFederation(bootstrapPeerAddrs); err != nil {
+					logger.Error("Failed to start federation services", zap.Error(err))
+				}
 			}
 
 			// Handle shutdown gracefully
@@ -188,6 +290,9 @@ func coordinatorCmd() *cobra.Command {
 			go func() {
 				<-sigChan
 				logger.Info("Shutting down coordinator")
+				if federationCoord != nil {
+					federationCoord.StopFederation()
+				}
 				coord.Stop()
 				os.Exit(0)
 			}()
@@ -304,6 +409,24 @@ func nodeCmd() *cobra.Command {
 						DataDir:            dataDir,
 					},
 				}
+				
+				// Check for auto TLS configuration
+				if os.Getenv("COLLECTIVE_AUTO_TLS") == "true" {
+					componentID := os.Getenv("COLLECTIVE_COMPONENT_ID")
+					if componentID == "" {
+						componentID = nodeID
+					}
+					
+					cfg.Auth = &auth.AuthConfig{
+						Enabled:           true,
+						CAPath:            fmt.Sprintf("/collective/certs/ca/%s-ca.crt", memberID),
+						CertPath:          fmt.Sprintf("/collective/certs/nodes/%s.crt", componentID),
+						KeyPath:           fmt.Sprintf("/collective/certs/nodes/%s.key", componentID),
+						PeerVerification:  true,
+						RequireClientAuth: false,
+						MinTLSVersion:     "1.2",
+					}
+				}
 			}
 
 			if cfg.MemberID == "" {
@@ -355,22 +478,141 @@ func nodeCmd() *cobra.Command {
 	return cmd
 }
 
-func clientCmd() *cobra.Command {
+// writeCmd creates a file from stdin
+func writeCmd() *cobra.Command {
+	var coordinatorAddr string
+	
 	cmd := &cobra.Command{
-		Use:   "client",
-		Short: "Client operations for testing",
+		Use:   "write [path]",
+		Short: "Write a file from stdin",
+		Long:  "Write data from stdin to a file in the collective storage",
+		Example: "echo 'Hello World' | collective write /documents/hello.txt",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := args[0]
+			
+			// Coordinator address will be resolved automatically by getSecureConnection
+			// from federated config if not provided via --coordinator flag
+			
+			// Connect to coordinator
+			conn, err := getSecureConnection(coordinatorAddr)
+			if err != nil {
+				return fmt.Errorf("failed to connect: %w", err)
+			}
+			defer conn.Close()
+			
+			client := protocol.NewCoordinatorClient(conn)
+			ctx := context.Background()
+			
+			// First, try to create the file (it might already exist)
+			createResp, err := client.CreateFile(ctx, &protocol.CreateFileRequest{
+				Path: path,
+				Mode: 0644,
+			})
+			if err == nil && !createResp.Success && createResp.Message != "File already exists" {
+				return fmt.Errorf("failed to create file: %s", createResp.Message)
+			}
+			
+			// Check if we can determine the input size for streaming decision
+			// For stdin, we'll read the data first to determine size
+			data, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to read stdin: %w", err)
+			}
+			
+			dataSize := int64(len(data))
+			
+			// Use streaming for large files
+			if shared.ShouldUseStreaming(dataSize) {
+				fmt.Printf("Large file detected (%d bytes), using streaming upload...\n", dataSize)
+				
+				// Create streaming writer
+				streamingWriter := shared.NewStreamingWriter(client, conn)
+				reader := bytes.NewReader(data)
+				
+				// Use streaming upload
+				err := streamingWriter.WriteFile(ctx, path, reader, dataSize)
+				if err != nil {
+					return fmt.Errorf("streaming upload failed: %w", err)
+				}
+				
+				if verbose {
+					fmt.Printf("Successfully uploaded %d bytes via streaming\n", dataSize)
+				}
+				
+				fmt.Printf("Wrote %d bytes to %s (streaming)\n", dataSize, path)
+			} else {
+				// Use regular upload for smaller files
+				writeResp, err := client.WriteFile(ctx, &protocol.WriteFileRequest{
+					Path:    path,
+					Data:    data,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to write file: %w", err)
+				}
+				if !writeResp.Success {
+					return fmt.Errorf("failed to write file: %s", writeResp.Message)
+				}
+				
+				if verbose {
+					fmt.Printf("Write response - Success: %v, BytesWritten: %d, Message: %s\n", 
+						writeResp.Success, writeResp.BytesWritten, writeResp.Message)
+				}
+				
+				fmt.Printf("Wrote %d bytes to %s\n", writeResp.BytesWritten, path)
+			}
+			return nil
+		},
 	}
+	
+	cmd.Flags().StringVar(&coordinatorAddr, "coordinator", "localhost:8001", "Coordinator address")
+	return cmd
+}
 
-	cmd.AddCommand(
-		storeCmd(),
-		retrieveCmd(),
-		statusCmd(),
-		mkdirCmd(),
-		lsCmd(),
-		rmCmd(),
-		mvCmd(),
-	)
-
+// readCmd reads a file to stdout
+func readCmd() *cobra.Command {
+	var coordinatorAddr string
+	
+	cmd := &cobra.Command{
+		Use:   "read [path]",
+		Short: "Read a file to stdout",
+		Long:  "Read a file from the collective storage and output to stdout",
+		Example: "collective read /documents/hello.txt",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := args[0]
+			
+			// Coordinator address will be resolved automatically by getSecureConnection
+			// from federated config if not provided via --coordinator flag
+			
+			// Connect to coordinator
+			conn, err := getSecureConnection(coordinatorAddr)
+			if err != nil {
+				return fmt.Errorf("failed to connect: %w", err)
+			}
+			defer conn.Close()
+			
+			client := protocol.NewCoordinatorClient(conn)
+			
+			// Read file
+			resp, err := client.ReadFile(context.Background(), &protocol.ReadFileRequest{
+				Path: path,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to read file: %w", err)
+			}
+			
+			if !resp.Success {
+				return fmt.Errorf("failed to read file: file not found or empty")
+			}
+			
+			// Output to stdout
+			os.Stdout.Write(resp.Data)
+			return nil
+		},
+	}
+	
+	cmd.Flags().StringVar(&coordinatorAddr, "coordinator", "localhost:8001", "Coordinator address")
 	return cmd
 }
 
@@ -409,9 +651,8 @@ func storeCmd() *cobra.Command {
 				fileID = fmt.Sprintf("/stored/%s", filepath.Base(filePath))
 			}
 
-			// For files larger than 4MB, use streaming
-			const maxDirectSize = 4 * 1024 * 1024
-			if fileInfo.Size() > maxDirectSize {
+			// For large files, use streaming
+			if shared.ShouldUseStreaming(fileInfo.Size()) {
 				// Create the file first
 				createResp, err := client.CreateFile(ctx, &protocol.CreateFileRequest{
 					Path: fileID,
@@ -424,25 +665,6 @@ func storeCmd() *cobra.Command {
 					return fmt.Errorf("failed to create file: %s", createResp.Message)
 				}
 
-				// Use streaming upload
-				stream, err := client.WriteFileStream(ctx)
-				if err != nil {
-					return fmt.Errorf("failed to create stream: %w", err)
-				}
-
-				// Send header
-				header := &protocol.WriteFileStreamRequest{
-					Data: &protocol.WriteFileStreamRequest_Header{
-						Header: &protocol.WriteFileStreamHeader{
-							Path:      fileID,
-							TotalSize: fileInfo.Size(),
-						},
-					},
-				}
-				if err := stream.Send(header); err != nil {
-					return fmt.Errorf("failed to send header: %w", err)
-				}
-
 				// Open file for streaming
 				file, err := os.Open(filePath)
 				if err != nil {
@@ -450,53 +672,16 @@ func storeCmd() *cobra.Command {
 				}
 				defer file.Close()
 
-				// Stream file in chunks
-				const chunkSize = 1024 * 1024 // 1MB chunks
-				buffer := make([]byte, chunkSize)
-				bytesSent := int64(0)
-
-				for {
-					n, err := file.Read(buffer)
-					if err == io.EOF {
-						break
-					}
-					if err != nil {
-						return fmt.Errorf("failed to read file: %w", err)
-					}
-
-					chunk := &protocol.WriteFileStreamRequest{
-						Data: &protocol.WriteFileStreamRequest_ChunkData{
-							ChunkData: buffer[:n],
-						},
-					}
-
-					if err := stream.Send(chunk); err != nil {
-						return fmt.Errorf("failed to send chunk: %w", err)
-					}
-
-					bytesSent += int64(n)
-					if bytesSent%(10*1024*1024) == 0 {
-						logger.Info("Upload progress",
-							zap.Int64("sent", bytesSent),
-							zap.Int64("total", fileInfo.Size()),
-							zap.Float64("percent", float64(bytesSent)/float64(fileInfo.Size())*100))
-					}
-				}
-
-				// Close stream and get response
-				resp, err := stream.CloseAndRecv()
+				// Create streaming writer and upload
+				streamingWriter := shared.NewStreamingWriter(client, conn)
+				err = streamingWriter.WriteFile(ctx, fileID, file, fileInfo.Size())
 				if err != nil {
-					return fmt.Errorf("failed to complete stream: %w", err)
+					return fmt.Errorf("streaming upload failed: %w", err)
 				}
 
-				if resp.Success {
-					logger.Info("File stored successfully via streaming",
-						zap.String("file_id", fileID),
-						zap.Int64("bytes", resp.BytesWritten),
-						zap.Int32("chunks", resp.ChunksCreated))
-				} else {
-					return fmt.Errorf("streaming upload failed: %s", resp.Message)
-				}
+				logger.Info("File stored successfully via streaming",
+					zap.String("file_id", fileID),
+					zap.Int64("bytes", fileInfo.Size()))
 			} else {
 				// Small file - use direct upload
 				data, err := os.ReadFile(filePath)
@@ -856,63 +1041,6 @@ func statusCmd() *cobra.Command {
 	return cmd
 }
 
-func peerCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "peer",
-		Short: "Peer management commands",
-	}
-
-	cmd.AddCommand(connectPeerCmd())
-	return cmd
-}
-
-func connectPeerCmd() *cobra.Command {
-	var (
-		coordinatorAddr string
-		peerID          string
-		peerAddr        string
-	)
-
-	cmd := &cobra.Command{
-		Use:   "connect",
-		Short: "Connect to a peer coordinator",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, err := getSecureConnection(coordinatorAddr)
-			if err != nil {
-				return fmt.Errorf("failed to connect to coordinator: %w", err)
-			}
-			defer conn.Close()
-
-			client := protocol.NewCoordinatorClient(conn)
-			ctx := context.Background()
-
-			resp, err := client.PeerConnect(ctx, &protocol.PeerConnectRequest{
-				MemberId: peerID,
-				Address:  peerAddr,
-			})
-
-			if err != nil {
-				return fmt.Errorf("peer connection failed: %w", err)
-			}
-
-			if resp.Accepted {
-				fmt.Printf("✓ Successfully connected to peer %s at %s\n", peerID, peerAddr)
-			} else {
-				fmt.Printf("✗ Peer connection rejected by %s\n", peerID)
-			}
-
-			return nil
-		},
-	}
-
-	cmd.Flags().StringVar(&coordinatorAddr, "coordinator", "localhost:8001", "coordinator address")
-	cmd.Flags().StringVar(&peerID, "peer-id", "", "peer member ID")
-	cmd.Flags().StringVar(&peerAddr, "peer-addr", "", "peer address")
-	cmd.MarkFlagRequired("peer-id")
-	cmd.MarkFlagRequired("peer-addr")
-
-	return cmd
-}
 
 func versionCmd() *cobra.Command {
 	return &cobra.Command{

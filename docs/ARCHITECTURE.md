@@ -2,33 +2,40 @@
 
 ## Overview
 
-Collective is a distributed storage system that enables small groups of trusted users to pool their storage resources. It uses a federated hub-and-spoke architecture where each member runs a coordinator that manages their storage nodes.
+Collective is a federated distributed storage system that enables small groups of trusted users to pool their storage resources. It uses a production-grade federation architecture where each member operates as an independent domain with their own Certificate Authority, participating in a gossip-based peer discovery network with granular permissions and smart chunk placement strategies.
 
 ## Core Design Principles
 
 - **Single Binary**: One Go binary that can run in coordinator or node mode
-- **Federated Design**: Each member runs one coordinator that peers with others
-- **Hub-and-Spoke**: Coordinators manage multiple storage nodes
-- **Automatic Mesh Formation**: Coordinators automatically form a full mesh topology
-- **State Synchronization**: Periodic sync of node states across all peers
-- **Member Sovereignty**: Each member controls their own resources
+- **Full Federation**: Mastodon-style addressing (node@domain.collective.local)
+- **Hierarchical Trust**: Multi-level CA with per-member certificate authorities
+- **Gossip Protocol**: Epidemic-style peer discovery with eventual consistency
+- **Smart Placement**: Media, Backup, and Hybrid strategies for optimal performance
+- **Member Sovereignty**: Each member controls their own resources and permissions
+- **Production Ready**: Health monitoring, metrics, resilience patterns
 
 ## Network Topology
 
 ```
-Alice Coordinator (8001) ←→ Bob Coordinator (8002)
-       ↓                           ↓
-   Alice Nodes                 Bob Nodes
-   - node-01 (7001)           - node-01 (7003)
-   - node-02 (7002)           - node-02 (7004)
-       
-       ↕                           ↕
-       
-Carol Coordinator (8003) ←→ (bidirectional peering)
-       ↓
-   Carol Nodes
-   - node-01 (7005)
-   - node-02 (7006)
+Federation Domain: collective.local
+                    │
+    ┌───────────────┼───────────────┐
+    │               │               │
+alice@home         bob@garage      carol@office
+.collective.local  .collective.local .collective.local
+    │               │               │
+    CA              CA              CA    (Per-member CAs)
+    │               │               │
+Coordinator ←──────→ Coordinator ←→ Coordinator
+    │               │               │     (Gossip Protocol)
+    ├─ Node-01      ├─ Node-01      ├─ Node-01
+    ├─ Node-02      ├─ Node-02      ├─ Node-02
+    └─ Node-03      └─ Node-03      └─ Node-03
+    
+DataStores with Permissions:
+/media (owner: alice) → bob:read+write, carol:read
+/backup (owner: bob) → *:read+write (federation-wide)
+/shared (owner: carol) → alice:read+write+share
 ```
 
 ## Components
@@ -79,6 +86,32 @@ The client provides user interaction with the collective:
 3. Client retrieves chunks from storage nodes
 4. Client assembles chunks into complete file
 
+## Federation Architecture
+
+### Gossip Protocol
+- **Epidemic Dissemination**: State spreads exponentially through the network
+- **Lamport Clocks**: Versioning for eventual consistency
+- **Failure Detection**: Suspected/Dead states with configurable timeouts
+- **Anti-Entropy**: Periodic full state synchronization
+
+### DataStore Permissions
+- **Granular Rights**: Read, Write, Delete, Share permissions
+- **Wildcard Support**: `*@*.collective.local` for federation-wide access
+- **Directory Inheritance**: Permissions cascade to subdirectories
+- **Time-Limited Access**: Optional expiration for temporary grants
+
+### Smart Chunk Placement
+- **Media Strategy**: Low-latency placement for streaming (local nodes preferred)
+- **Backup Strategy**: Cross-member diversity for maximum durability
+- **Hybrid Strategy**: Balanced performance and reliability
+- **Popularity-Based Replication**: Hot content gets more replicas
+
+### Connection Resilience
+- **Connection Pooling**: Reused gRPC connections with health checks
+- **Circuit Breakers**: Prevent cascade failures
+- **Exponential Backoff**: Smart retry logic
+- **Automatic Failover**: Route around failed nodes
+
 ## Security Architecture
 
 ### Authentication
@@ -90,9 +123,11 @@ The client provides user interaction with the collective:
 
 ### Trust Model
 
-- **Federated Trust**: Members explicitly trust peer coordinators
+- **Hierarchical CA**: Root federation CA → Member CAs → Component certificates
+- **Multi-CA Trust Store**: Validates certificates from multiple member CAs
 - **Isolated Domains**: Each member's CA only works with their components
 - **No Cross-Trust**: Alice's certificates won't work with Bob's coordinator
+- **Invite System**: Pre-authenticated codes for new member onboarding
 
 ## Storage Architecture
 
@@ -138,19 +173,31 @@ The client provides user interaction with the collective:
 - **Single Coordinator**: No coordinator redundancy yet
 - **Full Mesh**: O(n²) connections between coordinators
 
-## Future Architecture
+## Monitoring & Observability
 
-### Phase 7: Reliability
+### Prometheus Metrics
+- **Federation Metrics**: Connection health, gossip peers, placement operations
+- **Node Metrics**: Storage usage, chunk operations, latency
+- **Cluster Health**: Overall health score (0-100)
+- **Per-Node Health**: Individual node health tracking
 
-- Node heartbeats and health monitoring
-- Automatic re-registration after failures
-- Erasure coding for better storage efficiency
-- Distributed locking for consistency
+### Health Endpoints
+- `/health`: Overall cluster health with score
+- `/health/live`: Simple liveness check
+- `/health/ready`: Readiness for traffic (health > 30)
+- **Alerting Rules**: Pre-configured Prometheus alerts
 
-### Phase 8: Advanced Features
+## Future Enhancements
 
-- Persistent metadata storage
-- Coordinator redundancy/failover
-- Cross-member chunk sharing
-- S3-compatible API
-- Web UI for management
+### Performance Optimizations
+- **Erasure Coding**: Reduce storage overhead while maintaining reliability
+- **Deduplication**: Cross-member deduplication for common content
+- **Tiered Storage**: Hot/cold data separation with different strategies
+- **Edge Caching**: CDN-like edge caching for popular content
+
+### Advanced Features
+- **CRDT Conflict Resolution**: Handle concurrent updates across federation
+- **Geographic Awareness**: Placement decisions based on proximity
+- **Bandwidth Management**: Rate limiting and QoS for federation traffic
+- **S3-Compatible API**: Industry-standard object storage interface
+- **Web UI**: Management dashboard for federation monitoring

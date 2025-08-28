@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"collective/pkg/auth"
 )
@@ -65,8 +66,37 @@ func LoadFromEnv() *Config {
 		}
 
 		if peers := os.Getenv("COLLECTIVE_BOOTSTRAP_PEERS"); peers != "" {
-			// Parse comma-separated peers: alice:8001,bob:8002
-			// Implementation left for brevity
+			// Parse comma-separated peers: bob@172.20.0.20:8001,carol@172.20.0.30:8001
+			for _, peer := range strings.Split(peers, ",") {
+				peer = strings.TrimSpace(peer)
+				if peer == "" {
+					continue
+				}
+				
+				// Expected format: memberID@address:port or memberID:address:port
+				var memberID, address string
+				if strings.Contains(peer, "@") {
+					parts := strings.SplitN(peer, "@", 2)
+					if len(parts) == 2 {
+						memberID = parts[0]
+						address = parts[1]
+					}
+				} else {
+					// Legacy format: memberID:address:port
+					parts := strings.SplitN(peer, ":", 2)
+					if len(parts) == 2 {
+						memberID = parts[0]
+						address = parts[1]
+					}
+				}
+				
+				if memberID != "" && address != "" {
+					cfg.Coordinator.BootstrapPeers = append(cfg.Coordinator.BootstrapPeers, PeerConfig{
+						MemberID: memberID,
+						Address:  address,
+					})
+				}
+			}
 		}
 	} else {
 		cfg.Node = NodeConfig{

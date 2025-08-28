@@ -42,31 +42,43 @@ test-benchmark:
 
 # Local development setup
 run-local: build
-	@echo "Starting three-member collective locally..."
-	@echo "Run each command in a separate terminal:"
+	@echo "Starting federation example locally..."
+	@echo "Run: cd examples/federation && docker-compose up -d --build"
+	@echo ""
+	@echo "Or for manual setup, run each command in a separate terminal:"
 	@echo ""
 	@echo "# Alice's coordinator:"
-	@echo "./bin/$(BINARY_NAME) coordinator -c test/configs/alice-coordinator.json"
+	@echo "./bin/$(BINARY_NAME) coordinator --member-id alice --address :8001"
 	@echo ""
 	@echo "# Alice's nodes:"
-	@echo "./bin/$(BINARY_NAME) node -c test/configs/alice-node-01.json"
-	@echo "./bin/$(BINARY_NAME) node -c test/configs/alice-node-02.json"
+	@echo "./bin/$(BINARY_NAME) node --member-id alice --node-id alice-node-01 --capacity 5GB"
+	@echo "./bin/$(BINARY_NAME) node --member-id alice --node-id alice-node-02 --capacity 5GB"
 	@echo ""
 	@echo "# Bob's coordinator:"
-	@echo "./bin/$(BINARY_NAME) coordinator -c test/configs/bob-coordinator.json"
+	@echo "./bin/$(BINARY_NAME) coordinator --member-id bob --address :8002"
 	@echo ""
 	@echo "# Bob's nodes:"
-	@echo "./bin/$(BINARY_NAME) node -c test/configs/bob-node-01.json"
-	@echo "./bin/$(BINARY_NAME) node -c test/configs/bob-node-02.json"
+	@echo "./bin/$(BINARY_NAME) node --member-id bob --node-id bob-node-01 --capacity 5GB"
+	@echo "./bin/$(BINARY_NAME) node --member-id bob --node-id bob-node-02 --capacity 5GB"
 	@echo ""
 	@echo "# Carol's coordinator:"
-	@echo "./bin/$(BINARY_NAME) coordinator -c test/configs/carol-coordinator.json"
+	@echo "./bin/$(BINARY_NAME) coordinator --member-id carol --address :8003"
 	@echo ""
 	@echo "# Carol's nodes:"
-	@echo "./bin/$(BINARY_NAME) node -c test/configs/carol-node-01.json"
-	@echo "./bin/$(BINARY_NAME) node -c test/configs/carol-node-02.json"
+	@echo "./bin/$(BINARY_NAME) node --member-id carol --node-id carol-node-01 --capacity 5GB"
+	@echo "./bin/$(BINARY_NAME) node --member-id carol --node-id carol-node-02 --capacity 5GB"
 
-# Docker commands
+# Docker commands for federation example
+docker-federation:
+	cd examples/federation && docker-compose up -d --build
+
+docker-federation-down:
+	cd examples/federation && docker-compose down
+
+docker-federation-logs:
+	cd examples/federation && docker-compose logs -f
+
+# Docker commands for basic three-member setup
 docker-build:
 	docker-compose -f examples/three-member/docker-compose.yml build
 
@@ -83,7 +95,7 @@ docker-logs:
 clean:
 	rm -rf bin/
 	rm -rf data/
-	rm -rf test-data/
+	docker-compose -f examples/federation/docker-compose.yml down -v 2>/dev/null || true
 	docker-compose -f examples/three-member/docker-compose.yml down -v 2>/dev/null || true
 
 # Install dependencies

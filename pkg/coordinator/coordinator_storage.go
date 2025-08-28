@@ -3,6 +3,8 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"collective/pkg/protocol"
@@ -90,10 +92,19 @@ func (c *Coordinator) retrieveChunksFromNodes(ctx context.Context, chunkIDs []ty
 				continue
 			}
 
+			// Extract index from chunk ID (format: fileID-index-hash)
+			chunkIndex := 0
+			parts := strings.Split(string(chunkID), "-")
+			if len(parts) >= 3 {
+				if idx, err := strconv.Atoi(parts[len(parts)-2]); err == nil {
+					chunkIndex = idx
+				}
+			}
+
 			retrievedChunk = &types.Chunk{
 				ID:     chunkID,
 				FileID: types.FileID(""), // FileID not in response
-				Index:  0,                // Index not in response
+				Index:  chunkIndex,       // Extract index from chunk ID
 				Data:   resp.Data,
 			}
 			break

@@ -1,0 +1,46 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Scrape all coordinators
+  - job_name: 'collective-coordinators'
+    static_configs:
+      - targets:
+        - alice-coordinator:9090
+        - bob-coordinator:9090
+        - carol-coordinator:9090
+    metrics_path: /metrics
+    scrape_interval: 10s
+    
+  # Individual homelab metrics with labels
+  - job_name: 'alice-homelab'
+    static_configs:
+      - targets: ['alice-coordinator:9090']
+        labels:
+          homelab: 'alice'
+          location: 'home'
+          member: 'alice'
+          domain: 'home.alice.collective'
+          
+  - job_name: 'bob-homelab'
+    static_configs:
+      - targets: ['bob-coordinator:9090']
+        labels:
+          homelab: 'bob'
+          location: 'garage'
+          member: 'bob'
+          domain: 'garage.bob.collective'
+          
+  - job_name: 'carol-homelab'
+    static_configs:
+      - targets: ['carol-coordinator:9090']
+        labels:
+          homelab: 'carol'
+          location: 'office'
+          member: 'carol'
+          domain: 'office.carol.collective'
+
+# Alerting rules (optional, configure alertmanager separately)
+rule_files:
+  - /etc/prometheus/rules/*.yml

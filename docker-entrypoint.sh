@@ -58,13 +58,43 @@ if [ "$COLLECTIVE_AUTO_TLS" = "true" ]; then
     
     # Generate appropriate config based on component type
     if [ "$COLLECTIVE_COMPONENT_TYPE" = "coordinator" ]; then
+        # Start building coordinator config
         cat > "$CONFIG_DIR/config.json" <<EOF
 {
   "mode": "coordinator",
   "member_id": "$COLLECTIVE_MEMBER_ID",
   "coordinator": {
     "address": ":8001",
-    "data_dir": "/data/coordinator"
+    "data_dir": "/data/coordinator"$(
+        # Add bootstrap peers if configured
+        if [ -n "$COLLECTIVE_BOOTSTRAP_PEERS" ]; then
+            echo ","
+            echo "    \"bootstrap_peers\": ["
+            # Parse peers into JSON array
+            first=true
+            IFS=',' read -ra PEERS <<< "$COLLECTIVE_BOOTSTRAP_PEERS"
+            for peer in "${PEERS[@]}"; do
+                peer=$(echo "$peer" | xargs)  # trim whitespace
+                if [ -n "$peer" ]; then
+                    if [ "$first" = false ]; then
+                        echo ","
+                    fi
+                    # Extract memberID and address from peer (format: memberID@address:port)
+                    if [[ "$peer" == *"@"* ]]; then
+                        member_id="${peer%%@*}"
+                        address="${peer##*@}"
+                    else
+                        # Legacy format memberID:address:port
+                        member_id="${peer%%:*}"
+                        address="${peer#*:}"
+                    fi
+                    echo "      { \"member_id\": \"$member_id\", \"address\": \"$address\" }"
+                    first=false
+                fi
+            done
+            echo "    ]"
+        fi
+    )
   },
   "auth": {
     "enabled": true,
@@ -82,13 +112,17 @@ EOF
         # Get coordinator address from environment or use default
         COORDINATOR_ADDRESS="${COLLECTIVE_COORDINATOR_ADDRESS:-${COLLECTIVE_MEMBER_ID}-coordinator:8001}"
         
+        # Use hostname for node address so coordinator can reach it
+        NODE_HOSTNAME="${HOSTNAME:-$(hostname)}"
+        NODE_ADDRESS="${NODE_HOSTNAME}:9001"
+        
         cat > "$CONFIG_DIR/config.json" <<EOF
 {
   "mode": "node",
   "member_id": "$COLLECTIVE_MEMBER_ID",
   "node": {
     "node_id": "$COLLECTIVE_COMPONENT_ID",
-    "address": ":9001",
+    "address": "$NODE_ADDRESS",
     "data_dir": "/data/node",
     "storage_capacity": ${COLLECTIVE_STORAGE_CAPACITY:-10737418240},
     "coordinator_address": "$COORDINATOR_ADDRESS"

@@ -118,7 +118,16 @@ func (c *Coordinator) ReadFile(ctx context.Context, req *protocol.ReadFileReques
 	}
 
 	// Reassemble chunks into file data
-	resultData, _ := c.chunkManager.ReassembleChunks(chunks)
+	resultData, err := c.chunkManager.ReassembleChunks(chunks)
+	if err != nil {
+		c.logger.Error("Failed to reassemble chunks",
+			zap.String("path", req.Path),
+			zap.Error(err))
+		return &protocol.ReadFileResponse{
+			Success: false,
+			Data:    nil,
+		}, nil
+	}
 
 	// Handle offset and length
 	if req.Offset > 0 {
@@ -225,9 +234,17 @@ func (c *Coordinator) WriteFile(ctx context.Context, req *protocol.WriteFileRequ
 
 	// Store chunks on allocated nodes
 	storedChunks := []types.ChunkID{}
+	c.logger.Info("Storing chunks to nodes", 
+		zap.Int("chunk_count", len(chunks)),
+		zap.Int("node_count", len(nodeList)))
+	
 	for _, chunk := range chunks {
 		nodeIDs := allocations[chunk.ID]
 		successCount := 0
+
+		c.logger.Debug("Storing chunk", 
+			zap.String("chunk_id", string(chunk.ID)),
+			zap.Int("target_nodes", len(nodeIDs)))
 
 		for _, nodeID := range nodeIDs {
 			// Get node info
@@ -236,13 +253,27 @@ func (c *Coordinator) WriteFile(ctx context.Context, req *protocol.WriteFileRequ
 			c.nodeMutex.RUnlock()
 
 			if node == nil {
+				c.logger.Warn("Node not found", zap.String("node_id", string(nodeID)))
 				continue
 			}
 
+			c.logger.Debug("Connecting to node", 
+				zap.String("node_id", string(nodeID)),
+				zap.String("address", node.Address))
+
 			// Connect to node and store chunk
-			conn, err := grpc.Dial(node.Address, grpc.WithInsecure())
+			// Nodes require TLS authentication
+			c.logger.Info("Attempting to connect to node", 
+				zap.String("node_id", string(nodeID)),
+				zap.String("address", node.Address),
+				zap.Bool("tls_enabled", c.authConfig != nil && c.authConfig.Enabled))
+			
+			conn, err := c.connectToNode(node.Address)
 			if err != nil {
-				c.logger.Warn("Failed to connect to node", zap.String("node", string(nodeID)), zap.Error(err))
+				c.logger.Warn("Failed to connect to node", 
+					zap.String("node", string(nodeID)), 
+					zap.String("address", node.Address),
+					zap.Error(err))
 				continue
 			}
 
@@ -297,6 +328,31 @@ func (c *Coordinator) WriteFile(ctx context.Context, req *protocol.WriteFileRequ
 		fileEntry.ChunkIDs = storedChunks
 	}
 	c.directoryMutex.Unlock()
+
+	// Add file to tracking map for status metrics
+	file := &types.File{
+		ID:        fileID,
+		Name:      req.Path,
+		Size:      int64(len(req.Data)),
+		CreatedAt: time.Now(),
+		OwnerID:   c.memberID,
+	}
+
+	// Convert stored chunks to chunk locations for tracking
+	for i, chunkID := range storedChunks {
+		if nodeIDs, exists := allocations[chunkID]; exists && len(nodeIDs) > 0 {
+			file.Chunks = append(file.Chunks, types.ChunkLocation{
+				ChunkID: chunkID,
+				NodeID:  nodeIDs[0], // Use first allocated node
+				Index:   i,
+				Size:    int64(len(chunks[i].Data)),
+			})
+		}
+	}
+
+	c.fileMutex.Lock()
+	c.files[fileID] = file
+	c.fileMutex.Unlock()
 
 	c.logger.Info("File written with chunks",
 		zap.String("path", req.Path),

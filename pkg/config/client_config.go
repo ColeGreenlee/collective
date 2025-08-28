@@ -1,45 +1,63 @@
 package config
 
 import (
+	"crypto/ed25519"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-// ClientConfig represents the client-side configuration for collective CLI
+// ClientConfig represents the unified client configuration for collective CLI
 type ClientConfig struct {
-	CurrentContext string          `json:"current_context"`
-	Contexts       []Context       `json:"contexts"`
-	Defaults       DefaultSettings `json:"defaults"`
+	Version      string           `json:"version"`
+	UserIdentity *UserIdentity    `json:"user_identity,omitempty"`
+	Collectives  []CollectiveInfo `json:"collectives"`
+	Defaults     DefaultSettings  `json:"defaults"`
+	
 }
 
-// Context represents a connection context to a collective
-type Context struct {
-	Name        string       `json:"name"`
-	Description string       `json:"description,omitempty"`
-	Coordinator string       `json:"coordinator"`
-	MemberID    string       `json:"member_id"`
-	Auth        AuthSettings `json:"auth"`
-}
-
-// AuthSettings represents authentication settings for a context
-type AuthSettings struct {
-	Type     string `json:"type"` // "certificate" or "token"
-	CAPath   string `json:"ca_cert,omitempty"`
-	CertPath string `json:"client_cert,omitempty"`
-	KeyPath  string `json:"client_key,omitempty"`
-	Token    string `json:"token,omitempty"`
-	Insecure bool   `json:"insecure,omitempty"`
-}
 
 // DefaultSettings represents default settings for the client
 type DefaultSettings struct {
-	Timeout      string `json:"timeout,omitempty"`
-	RetryCount   int    `json:"retry_count,omitempty"`
-	OutputFormat string `json:"output_format,omitempty"`
+	PreferredCollective string `json:"preferred_collective,omitempty"`
+	AutoDiscovery       bool   `json:"auto_discovery"`
+	Timeout             string `json:"timeout,omitempty"`
+	RetryCount          int    `json:"retry_count,omitempty"`
+	OutputFormat        string `json:"output_format,omitempty"`
+}
+
+// UserIdentity represents a global user identity across collectives
+type UserIdentity struct {
+	GlobalID    string    `json:"global_id"`    // e.g., "alice@collective.network"
+	DisplayName string    `json:"display_name"` // e.g., "Alice Johnson"
+	PublicKey   string    `json:"public_key"`   // Ed25519 public key
+	Created     time.Time `json:"created"`
+}
+
+// CollectiveInfo represents connection info for a specific collective
+type CollectiveInfo struct {
+	CollectiveID        string            `json:"collective_id"`        // e.g., "home.alice"
+	CoordinatorAddress  string            `json:"coordinator_address"`  // e.g., "alice.collective:8001"
+	MemberID            string            `json:"member_id"`            // Local member ID in this collective
+	Role                string            `json:"role"`                 // "owner", "member", "guest"
+	Certificates        CertificateConfig `json:"certificates"`
+	Permissions         []string          `json:"permissions,omitempty"` // Optional permission restrictions
+	AutoDiscover        bool              `json:"auto_discover"`         // Whether to auto-discover this collective
+	TrustLevel          string            `json:"trust_level"`           // "high", "medium", "low"
+	Description         string            `json:"description,omitempty"`
+	Tags                []string          `json:"tags,omitempty"`
+}
+
+// CertificateConfig represents certificate paths for a collective
+type CertificateConfig struct {
+	CACert     string `json:"ca_cert"`
+	ClientCert string `json:"client_cert"`
+	ClientKey  string `json:"client_key"`
 }
 
 // GetConfigDir returns the collective configuration directory
@@ -67,18 +85,20 @@ func GetConfigPath() string {
 	return filepath.Join(GetConfigDir(), "config.json")
 }
 
-// LoadClientConfig loads the client configuration from file
+// LoadClientConfig loads the unified client configuration from file
 func LoadClientConfig() (*ClientConfig, error) {
 	configPath := GetConfigPath()
 
 	// Check if config exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Return empty config if doesn't exist
+		// Return empty config with defaults
 		return &ClientConfig{
+			Version: "2.0",
 			Defaults: DefaultSettings{
-				Timeout:      "30s",
-				RetryCount:   3,
-				OutputFormat: "styled",
+				AutoDiscovery: true,
+				Timeout:       "30s",
+				RetryCount:    3,
+				OutputFormat:  "styled",
 			},
 		}, nil
 	}
@@ -93,12 +113,18 @@ func LoadClientConfig() (*ClientConfig, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Expand paths
-	for i := range config.Contexts {
-		config.Contexts[i].Auth.CAPath = expandPath(config.Contexts[i].Auth.CAPath)
-		config.Contexts[i].Auth.CertPath = expandPath(config.Contexts[i].Auth.CertPath)
-		config.Contexts[i].Auth.KeyPath = expandPath(config.Contexts[i].Auth.KeyPath)
+	// Set version if not present (for migration)
+	if config.Version == "" {
+		config.Version = "2.0"
 	}
+
+	// Expand certificate paths for collectives
+	for i := range config.Collectives {
+		config.Collectives[i].Certificates.CACert = expandPath(config.Collectives[i].Certificates.CACert)
+		config.Collectives[i].Certificates.ClientCert = expandPath(config.Collectives[i].Certificates.ClientCert)
+		config.Collectives[i].Certificates.ClientKey = expandPath(config.Collectives[i].Certificates.ClientKey)
+	}
+
 
 	return &config, nil
 }
@@ -127,90 +153,7 @@ func (c *ClientConfig) Save() error {
 	return nil
 }
 
-// GetContext returns the context with the given name
-func (c *ClientConfig) GetContext(name string) (*Context, error) {
-	for _, ctx := range c.Contexts {
-		if ctx.Name == name {
-			return &ctx, nil
-		}
-	}
-	return nil, fmt.Errorf("context %q not found", name)
-}
 
-// GetCurrentContext returns the current context
-func (c *ClientConfig) GetCurrentContext() (*Context, error) {
-	if c.CurrentContext == "" {
-		return nil, fmt.Errorf("no current context set")
-	}
-	return c.GetContext(c.CurrentContext)
-}
-
-// AddContext adds a new context or updates an existing one
-func (c *ClientConfig) AddContext(ctx Context) error {
-	// Validate context
-	if ctx.Name == "" {
-		return fmt.Errorf("context name is required")
-	}
-	if ctx.Coordinator == "" {
-		return fmt.Errorf("coordinator address is required")
-	}
-
-	// Check if context exists
-	for i, existing := range c.Contexts {
-		if existing.Name == ctx.Name {
-			// Update existing context
-			c.Contexts[i] = ctx
-			return c.Save()
-		}
-	}
-
-	// Add new context
-	c.Contexts = append(c.Contexts, ctx)
-
-	// Set as current if it's the first context
-	if c.CurrentContext == "" {
-		c.CurrentContext = ctx.Name
-	}
-
-	return c.Save()
-}
-
-// RemoveContext removes a context
-func (c *ClientConfig) RemoveContext(name string) error {
-	for i, ctx := range c.Contexts {
-		if ctx.Name == name {
-			// Remove from slice
-			c.Contexts = append(c.Contexts[:i], c.Contexts[i+1:]...)
-
-			// Update current context if needed
-			if c.CurrentContext == name {
-				c.CurrentContext = ""
-				if len(c.Contexts) > 0 {
-					c.CurrentContext = c.Contexts[0].Name
-				}
-			}
-
-			return c.Save()
-		}
-	}
-	return fmt.Errorf("context %q not found", name)
-}
-
-// SetCurrentContext sets the current context
-func (c *ClientConfig) SetCurrentContext(name string) error {
-	// Verify context exists
-	if _, err := c.GetContext(name); err != nil {
-		return err
-	}
-
-	c.CurrentContext = name
-	return c.Save()
-}
-
-// GetCertificateDir returns the certificate directory for a context
-func GetCertificateDir(contextName string) string {
-	return filepath.Join(GetConfigDir(), "certificates", contextName)
-}
 
 // expandPath expands ~ and environment variables in paths
 func expandPath(path string) string {
@@ -240,19 +183,108 @@ type ConnectionConfig struct {
 	Timeout     time.Duration
 }
 
-// GetConnectionConfig returns the connection configuration for the current context
-func (c *ClientConfig) GetConnectionConfig(contextOverride string) (*ConnectionConfig, error) {
-	var ctx *Context
-	var err error
+// GetCollectiveByID returns collective info by collective ID
+func (c *ClientConfig) GetCollectiveByID(collectiveID string) (*CollectiveInfo, error) {
+	for _, collective := range c.Collectives {
+		if collective.CollectiveID == collectiveID {
+			return &collective, nil
+		}
+	}
+	return nil, fmt.Errorf("collective %q not found", collectiveID)
+}
 
-	if contextOverride != "" {
-		ctx, err = c.GetContext(contextOverride)
-	} else {
-		ctx, err = c.GetCurrentContext()
+// GetCollectiveByCoordinator returns collective info by coordinator address
+func (c *ClientConfig) GetCollectiveByCoordinator(coordinatorAddr string) (*CollectiveInfo, error) {
+	// Normalize address for comparison
+	normalizedAddr := normalizeAddress(coordinatorAddr)
+	
+	for _, collective := range c.Collectives {
+		if normalizeAddress(collective.CoordinatorAddress) == normalizedAddr {
+			return &collective, nil
+		}
+	}
+	return nil, fmt.Errorf("collective with coordinator %q not found", coordinatorAddr)
+}
+
+// GetPreferredCollective returns the preferred collective or the first available one
+func (c *ClientConfig) GetPreferredCollective() (*CollectiveInfo, error) {
+	if c.Defaults.PreferredCollective != "" {
+		return c.GetCollectiveByID(c.Defaults.PreferredCollective)
+	}
+	
+	if len(c.Collectives) == 0 {
+		return nil, fmt.Errorf("no collectives configured")
+	}
+	
+	return &c.Collectives[0], nil
+}
+
+// AddCollective adds or updates a collective in the configuration
+func (c *ClientConfig) AddCollective(collective CollectiveInfo) error {
+	// Validate collective
+	if collective.CollectiveID == "" {
+		return fmt.Errorf("collective ID is required")
+	}
+	if collective.CoordinatorAddress == "" {
+		return fmt.Errorf("coordinator address is required")
 	}
 
+	// Check if collective exists
+	for i, existing := range c.Collectives {
+		if existing.CollectiveID == collective.CollectiveID {
+			// Update existing collective
+			c.Collectives[i] = collective
+			return c.Save()
+		}
+	}
+
+	// Add new collective
+	c.Collectives = append(c.Collectives, collective)
+
+	// Set as preferred if it's the first collective
+	if c.Defaults.PreferredCollective == "" {
+		c.Defaults.PreferredCollective = collective.CollectiveID
+	}
+
+	return c.Save()
+}
+
+// RemoveCollective removes a collective from the configuration
+func (c *ClientConfig) RemoveCollective(collectiveID string) error {
+	for i, collective := range c.Collectives {
+		if collective.CollectiveID == collectiveID {
+			// Remove from slice
+			c.Collectives = append(c.Collectives[:i], c.Collectives[i+1:]...)
+
+			// Update preferred collective if needed
+			if c.Defaults.PreferredCollective == collectiveID {
+				c.Defaults.PreferredCollective = ""
+				if len(c.Collectives) > 0 {
+					c.Defaults.PreferredCollective = c.Collectives[0].CollectiveID
+				}
+			}
+
+			return c.Save()
+		}
+	}
+	return fmt.Errorf("collective %q not found", collectiveID)
+}
+
+// ResolveConnection resolves connection configuration for a given coordinator address
+func (c *ClientConfig) ResolveConnection(coordinatorAddr string) (*ConnectionConfig, error) {
+	// If no coordinator specified, use preferred collective
+	if coordinatorAddr == "" {
+		collective, err := c.GetPreferredCollective()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get preferred collective: %w", err)
+		}
+		coordinatorAddr = collective.CoordinatorAddress
+	}
+
+	// Find collective by coordinator address
+	collective, err := c.GetCollectiveByCoordinator(coordinatorAddr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve collective: %w", err)
 	}
 
 	// Parse timeout
@@ -264,66 +296,53 @@ func (c *ClientConfig) GetConnectionConfig(contextOverride string) (*ConnectionC
 	}
 
 	return &ConnectionConfig{
-		Coordinator: ctx.Coordinator,
-		CAPath:      ctx.Auth.CAPath,
-		CertPath:    ctx.Auth.CertPath,
-		KeyPath:     ctx.Auth.KeyPath,
-		Insecure:    ctx.Auth.Insecure,
+		Coordinator: collective.CoordinatorAddress,
+		CAPath:      collective.Certificates.CACert,
+		CertPath:    collective.Certificates.ClientCert,
+		KeyPath:     collective.Certificates.ClientKey,
+		Insecure:    false, // Always use secure connections in federated mode
 		Timeout:     timeout,
 	}, nil
 }
 
-// InitializeContext creates a new context with auto-generated certificates
-func InitializeContext(name, coordinator, memberID, caPath string) error {
-	config, err := LoadClientConfig()
+
+
+// normalizeAddress normalizes a coordinator address for comparison
+func normalizeAddress(addr string) string {
+	// Add default port if missing
+	if !strings.Contains(addr, ":") {
+		addr = addr + ":8001"
+	}
+	
+	// Resolve hostname to handle localhost, 127.0.0.1, etc.
+	if host, port, err := net.SplitHostPort(addr); err == nil {
+		if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+			return fmt.Sprintf("localhost:%s", port)
+		}
+	}
+	
+	return addr
+}
+
+// CreateUserIdentity creates a new user identity with generated key pair
+func CreateUserIdentity(globalID, displayName string) (*UserIdentity, ed25519.PrivateKey, error) {
+	// Generate Ed25519 key pair
+	publicKey, privateKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+		return nil, nil, fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
-	// Create certificate directory
-	certDir := GetCertificateDir(name)
-	if err := os.MkdirAll(certDir, 0700); err != nil {
-		return fmt.Errorf("failed to create certificate directory: %w", err)
+	identity := &UserIdentity{
+		GlobalID:    globalID,
+		DisplayName: displayName,
+		PublicKey:   hex.EncodeToString(publicKey),
+		Created:     time.Now(),
 	}
 
-	// Set up paths
-	caCertPath := filepath.Join(certDir, "ca.crt")
-	clientCertPath := filepath.Join(certDir, "client.crt")
-	clientKeyPath := filepath.Join(certDir, "client.key")
+	return identity, privateKey, nil
+}
 
-	// Copy CA certificate if provided
-	if caPath != "" {
-		caData, err := os.ReadFile(expandPath(caPath))
-		if err != nil {
-			return fmt.Errorf("failed to read CA certificate: %w", err)
-		}
-		if err := os.WriteFile(caCertPath, caData, 0644); err != nil {
-			return fmt.Errorf("failed to write CA certificate: %w", err)
-		}
-	}
-
-	// Create context
-	ctx := Context{
-		Name:        name,
-		Coordinator: coordinator,
-		MemberID:    memberID,
-		Auth: AuthSettings{
-			Type:     "certificate",
-			CAPath:   caCertPath,
-			CertPath: clientCertPath,
-			KeyPath:  clientKeyPath,
-		},
-	}
-
-	// Add context to config
-	if err := config.AddContext(ctx); err != nil {
-		return fmt.Errorf("failed to add context: %w", err)
-	}
-
-	fmt.Printf("✓ Context %q created successfully\n", name)
-	fmt.Printf("  Coordinator: %s\n", coordinator)
-	fmt.Printf("  Member ID: %s\n", memberID)
-	fmt.Printf("  Certificates: %s\n", certDir)
-
-	return nil
+// GetCollectiveCertificateDir returns the certificate directory for a collective
+func GetCollectiveCertificateDir(collectiveID string) string {
+	return filepath.Join(GetConfigDir(), "certs", collectiveID)
 }

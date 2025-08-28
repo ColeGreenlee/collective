@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package collective.gossip;
+
+option go_package = "collective/pkg/protocol";
+
+import "google/protobuf/timestamp.proto";
+
+// GossipService handles peer-to-peer gossip communication
+service GossipService {
+  // Exchange gossip messages with a peer
+  rpc GossipExchange(GossipRequest) returns (GossipResponse);
+  
+  // Stream-based gossip for real-time updates
+  rpc GossipStream(stream GossipMessage) returns (stream GossipMessage);
+}
+
+// GossipMessage types
+enum GossipType {
+  GOSSIP_UNKNOWN = 0;
+  GOSSIP_JOIN = 1;      // New member joining federation
+  GOSSIP_LEAVE = 2;     // Member leaving federation
+  GOSSIP_UPDATE = 3;    // State update (endpoints, datastores)
+  GOSSIP_HEARTBEAT = 4; // Periodic heartbeat
+  GOSSIP_SYNC = 5;      // Anti-entropy sync request
+}
+
+// Main gossip message
+message GossipMessage {
+  GossipType type = 1;
+  string source_address = 2;  // Federated address of sender
+  uint64 version = 3;         // Lamport clock version
+  google.protobuf.Timestamp timestamp = 4;
+  bytes signature = 5;        // Digital signature for authenticity
+  
+  // Payload based on type
+  oneof payload {
+    JoinPayload join = 10;
+    LeavePayload leave = 11;
+    UpdatePayload update = 12;
+    HeartbeatPayload heartbeat = 13;
+    SyncPayload sync = 14;
+  }
+}
+
+// Join message when new member joins
+message JoinPayload {
+  string member_domain = 1;
+  repeated PeerEndpoint endpoints = 2;
+  repeated DataStoreInfo datastores = 3;
+  bytes ca_certificate = 4;  // Member's CA cert for trust
+}
+
+// Leave message when member departs
+message LeavePayload {
+  string member_domain = 1;
+  string reason = 2;
+}
+
+// Update message for state changes
+message UpdatePayload {
+  repeated PeerEndpoint endpoints = 1;
+  repeated DataStoreInfo datastores = 2;
+  map<string, string> metadata = 3;
+}
+
+// Heartbeat for liveness detection
+message HeartbeatPayload {
+  repeated string known_peers = 1;  // List of known peer domains
+  map<string, uint64> peer_versions = 2;  // Version vector for anti-entropy
+}
+
+// Sync request for anti-entropy
+message SyncPayload {
+  map<string, uint64> have_versions = 1;  // What we have
+  repeated string need_peers = 2;         // What we need
+}
+
+// Peer endpoint information
+message PeerEndpoint {
+  string domain = 1;           // Federation domain
+  repeated string direct_ips = 2;   // Public IP addresses
+  repeated string vpn_ips = 3;      // VPN addresses
+  repeated string lan_ips = 4;      // Local network addresses
+  int64 latency_ms = 5;        // Measured latency
+  int32 preference = 6;         // Routing preference
+}
+
+// DataStore information shared via gossip
+message DataStoreInfo {
+  string path = 1;              // DataStore path
+  string owner_address = 2;     // Federated address of owner
+  int32 replica_count = 3;      // Desired replicas
+  PlacementStrategy strategy = 4;
+  int64 size_bytes = 5;         // Total size
+  map<string, string> metadata = 6;
+}
+
+enum PlacementStrategy {
+  PLACEMENT_UNKNOWN = 0;
+  PLACEMENT_MEDIA = 1;    // Optimize for streaming
+  PLACEMENT_BACKUP = 2;   // Optimize for durability
+  PLACEMENT_HYBRID = 3;   // Balance both
+}
+
+// Peer state for gossip tracking
+message PeerState {
+  string federated_address = 1;
+  repeated PeerEndpoint endpoints = 2;
+  google.protobuf.Timestamp last_seen = 3;
+  uint64 version = 4;          // Lamport clock
+  repeated string datastores = 5;
+  PeerStatus status = 6;
+}
+
+enum PeerStatus {
+  PEER_UNKNOWN = 0;
+  PEER_ALIVE = 1;
+  PEER_SUSPECTED = 2;  // Might be down
+  PEER_DEAD = 3;       // Confirmed down
+}
+
+// Request for gossip exchange
+message GossipRequest {
+  string sender_domain = 1;
+  repeated GossipMessage messages = 2;
+  map<string, uint64> version_vector = 3;  // For anti-entropy
+}
+
+// Response to gossip exchange
+message GossipResponse {
+  string responder_domain = 1;
+  repeated GossipMessage messages = 2;
+  map<string, uint64> version_vector = 3;
+  bool need_sync = 4;  // Indicates if full sync needed
+}

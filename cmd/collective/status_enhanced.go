@@ -150,11 +150,11 @@ func displayStatus(flags *StatusFlags) error {
 	var connConfig *config.ConnectionConfig
 	if flags.CertPath == "" && flags.KeyPath == "" && !flags.Insecure {
 		cfg, err := config.LoadClientConfig()
-		if err == nil && cfg.CurrentContext != "" {
-			// Use context configuration
-			connConfig, _ = cfg.GetConnectionConfig("")
+		if err == nil && len(cfg.Collectives) > 0 {
+			// Use federated configuration
+			connConfig, _ = cfg.ResolveConnection(flags.Coordinator)
 			if connConfig != nil {
-				// Apply context settings if not overridden
+				// Apply federated settings if not overridden
 				if flags.Coordinator == "localhost:8001" { // Default value
 					flags.Coordinator = connConfig.Coordinator
 				}

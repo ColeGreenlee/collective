@@ -32,6 +32,13 @@ service Coordinator {
   // Streaming operations for large files
   rpc WriteFileStream(stream WriteFileStreamRequest) returns (WriteFileStreamResponse);
   rpc ReadFileStream(ReadFileStreamRequest) returns (stream ReadFileStreamResponse);
+  
+  // Federation certificate management
+  rpc GetFederationCA(GetFederationCARequest) returns (GetFederationCAResponse);
+  rpc RequestClientCertificate(RequestClientCertificateRequest) returns (RequestClientCertificateResponse);
+  
+  // Invite management
+  rpc GenerateInvite(GenerateInviteRequest) returns (GenerateInviteResponse);
 }
 
 message GetStatusRequest {}
@@ -315,4 +322,48 @@ message ReadFileStreamResponse {
 message ReadFileStreamHeader {
   int64 total_size = 1;
   int32 chunk_count = 2;
+}
+
+// Federation certificate management messages
+message GetFederationCARequest {}
+
+message GetFederationCAResponse {
+  bool success = 1;
+  string ca_certificate = 2;  // PEM-encoded CA certificate
+  string federation_domain = 3;
+  string message = 4;
+}
+
+message RequestClientCertificateRequest {
+  string csr = 1;           // PEM-encoded certificate signing request
+  string client_id = 2;     // Client identity (e.g., user@domain.collective.local)
+  string invite_code = 3;   // Invitation code for validation
+}
+
+message RequestClientCertificateResponse {
+  bool success = 1;
+  string client_certificate = 2;  // PEM-encoded client certificate
+  string ca_certificate = 3;      // PEM-encoded CA certificate for verification
+  string message = 4;
+  string collective_name = 5;     // Name of the collective the client is joining
+}
+
+message GenerateInviteRequest {
+  repeated DataStoreGrant grants = 1;
+  int32 max_uses = 2;
+  int64 validity_seconds = 3;
+  string description = 4;
+}
+
+message DataStoreGrant {
+  string path = 1;
+  repeated string rights = 2;
+}
+
+message GenerateInviteResponse {
+  bool success = 1;
+  string code = 2;
+  string message = 3;
+  int64 expires_at = 4;
+  string share_url = 5;
 }

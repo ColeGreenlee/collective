@@ -13,6 +13,7 @@ import (
 	"collective/pkg/auth"
 	"collective/pkg/config"
 	"collective/pkg/protocol"
+	"collective/pkg/shared"
 	"collective/pkg/types"
 
 	"go.uber.org/zap"
@@ -161,37 +162,20 @@ func (n *Node) Stop() {
 }
 
 func (n *Node) connectToCoordinator() error {
-	var dialOpts []grpc.DialOption
-
-	if n.authConfig != nil && n.authConfig.Enabled {
-		// Create TLS configuration for client
-		tlsBuilder, err := auth.NewTLSConfigBuilder(n.authConfig)
-		if err != nil {
-			return fmt.Errorf("failed to create TLS config: %w", err)
-		}
-
-		tlsConfig, err := tlsBuilder.BuildClientConfig()
-		if err != nil {
-			return fmt.Errorf("failed to build client TLS config: %w", err)
-		}
-
-		if tlsConfig != nil {
-			creds := credentials.NewTLS(tlsConfig)
-			dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
-			n.logger.Info("Connecting to coordinator with TLS",
-				zap.String("coordinator", n.coordinatorAddress))
-		}
-	} else {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
-	}
-
-	conn, err := grpc.Dial(n.coordinatorAddress, dialOpts...)
+	// Use shared connection utilities with auth config
+	conn, err := shared.ConnectToCoordinatorWithAuth(n.coordinatorAddress, shared.DefaultGRPCTimeout, n.authConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect to coordinator: %w", err)
 	}
 
 	n.coordinatorConn = conn
 	n.coordinatorClient = protocol.NewCoordinatorClient(conn)
+	
+	if n.authConfig != nil && n.authConfig.Enabled {
+		n.logger.Info("Connected to coordinator with TLS",
+			zap.String("coordinator", n.coordinatorAddress))
+	}
+	
 	return nil
 }
 

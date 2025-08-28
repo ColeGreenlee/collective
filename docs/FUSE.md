@@ -75,6 +75,31 @@ type FileEntry struct {
 }
 ```
 
+## Federation Integration
+
+The FUSE filesystem fully supports federation features:
+
+### Cross-Member Access
+```bash
+# Mount with federation-aware paths
+./bin/collective mount /mnt/collective --coordinator alice-coordinator:8001
+
+# Access files across the federation
+ls /mnt/collective/@bob/shared/      # Files from Bob's domain
+cp file.txt /mnt/collective/@carol/  # Copy to Carol's datastore
+```
+
+### DataStore Permissions
+- Files respect DataStore permissions set through federation
+- Cross-member reads/writes validated against permission grants
+- Wildcard permissions (`*@*.collective.local`) honored
+
+### Smart Caching
+- Media files cached locally for streaming performance
+- LRU eviction with configurable cache sizes
+- Read-ahead and prefetching for sequential access
+- Cache statistics available via metrics endpoint
+
 ## Platform Support
 
 | Platform | FUSE Mounting | CLI Operations | Status |

@@ -7,14 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"collective/pkg/client"
 	"collective/pkg/protocol"
+	"collective/pkg/shared"
 	"collective/pkg/storage"
 	"collective/pkg/types"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 )
 
 const (
@@ -400,10 +399,10 @@ func (c *Coordinator) ReadFileStream(req *protocol.ReadFileStreamRequest, stream
 	return nil
 }
 
-// Connection pool for node connections
+// Connection pool for node connections - use shared utilities
 var (
-	nodeConnections = make(map[string]*grpc.ClientConn)
-	nodeConnMutex   sync.RWMutex
+	nodeConnectionPool *shared.SharedConnectionPool
+	nodeConnPoolOnce   sync.Once
 )
 
 // retrieveChunkFromNode retrieves a chunk from a specific storage node
@@ -432,41 +431,12 @@ func (c *Coordinator) retrieveChunkFromNode(ctx context.Context, node *types.Sto
 	return resp.Data, nil
 }
 
-// getNodeConnection returns a pooled connection to a node
+// getNodeConnection returns a pooled connection to a node using shared utilities
 func (c *Coordinator) getNodeConnection(address string) (*grpc.ClientConn, error) {
-	nodeConnMutex.RLock()
-	conn, exists := nodeConnections[address]
-	nodeConnMutex.RUnlock()
-
-	if exists && conn.GetState() != connectivity.Shutdown {
-		return conn, nil
-	}
-
-	// Create new connection
-	nodeConnMutex.Lock()
-	defer nodeConnMutex.Unlock()
-
-	// Double-check after acquiring write lock
-	conn, exists = nodeConnections[address]
-	if exists && conn.GetState() != connectivity.Shutdown {
-		return conn, nil
-	}
-
-	// Create new secure connection
-	// Note: This uses the coordinator's auth config if available
-	var newConn *grpc.ClientConn
-	var err error
-	if c.authConfig != nil {
-		newConn, err = client.CreateAuthenticatedConnection(context.Background(), address, c.authConfig)
-	} else {
-		// Fallback for nodes without auth configured
-		newConn, err = grpc.Dial(address, grpc.WithInsecure())
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to dial node: %w", err)
-	}
-
-	// Store in pool
-	nodeConnections[address] = newConn
-	return newConn, nil
+	// Initialize shared connection pool once
+	nodeConnPoolOnce.Do(func() {
+		nodeConnectionPool = shared.NewSharedConnectionPool(c.authConfig)
+	})
+	
+	return nodeConnectionPool.GetConnection(address)
 }

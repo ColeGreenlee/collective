@@ -120,10 +120,10 @@ func (b *TLSConfigBuilder) BuildPeerConfig() (*tls.Config, error) {
 		return nil, fmt.Errorf("failed to load peer certificate: %w", err)
 	}
 
-	// Load CA pool
-	caPool, err := b.loadCAPool(b.config.CAPath)
+	// Load CA pool with all member CAs for federation trust
+	caPool, err := b.LoadMultiCAPool(filepath.Dir(b.config.CAPath))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load CA pool: %w", err)
+		return nil, fmt.Errorf("failed to load federation CA pool: %w", err)
 	}
 
 	tlsConfig := &tls.Config{
@@ -209,7 +209,8 @@ func (b *TLSConfigBuilder) LoadMultiCAPool(certDir string) (*x509.CertPool, erro
 	
 	loadedCount := 0
 	for _, entry := range entries {
-		if strings.HasSuffix(entry.Name(), "-ca.crt") {
+		// Load both member CAs (*-ca.crt) and federation root CA (federation-root-ca.crt)
+		if strings.HasSuffix(entry.Name(), "-ca.crt") || entry.Name() == "federation-root-ca.crt" {
 			caPath := filepath.Join(certDir, entry.Name())
 			caCert, err := os.ReadFile(caPath)
 			if err != nil {

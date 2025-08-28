@@ -108,6 +108,7 @@ func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirec
 	for _, childPath := range dir.Children {
 		if childDir, exists := c.directories[childPath]; exists {
 			entries = append(entries, &protocol.DirectoryEntry{
+				Name:        filepath.Base(childDir.Path),
 				Path:        childDir.Path,
 				IsDirectory: true,
 				Mode:        uint32(childDir.Mode),
@@ -121,6 +122,7 @@ func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirec
 	for filePath, fileEntry := range c.fileEntries {
 		if getParentPath(filePath) == path {
 			entries = append(entries, &protocol.DirectoryEntry{
+				Name:        filepath.Base(filePath),
 				Path:        filePath,
 				IsDirectory: false,
 				Size:        fileEntry.Size,
@@ -553,3 +555,4 @@ func (c *Coordinator) getFileLock(path string) *sync.RWMutex {
 	c.fileLocks[path] = lock
 	return lock
 }
+

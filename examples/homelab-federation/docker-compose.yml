@@ -1,0 +1,457 @@
+version: '3.8'
+
+# Three homelab setup: Alice, Bob, and Carol
+# Each runs 1 coordinator + 3 storage nodes with 512MB each
+# Total: 3 coordinators, 9 storage nodes, ~4.5GB total storage
+
+services:
+  # ============================================
+  # ALICE'S HOMELAB (home.alice.collective)
+  # ============================================
+  
+  alice-coordinator:
+    build: ../..
+    container_name: alice-coordinator
+    hostname: alice-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=alice-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_FEDERATION_DOMAIN=homelab.collective
+      - COLLECTIVE_BOOTSTRAP_PEERS=bob@172.20.0.20:8001,carol@172.20.0.30:8001
+    command: [
+      "coordinator",
+      "--member-id", "alice",
+      "--address", ":8001"
+    ]
+    ports:
+      - "8001:8001"  # gRPC API
+      - "9091:9090"  # Prometheus metrics
+      - "9001:9001"  # Bootstrap server for invite redemption
+    volumes:
+      - alice-certs:/collective/certs
+      - alice-coord-data:/data
+      - federation-ca:/collective/federation
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.10
+        aliases:
+          - alice.home.alice.collective
+          - coordinator.home.alice.collective
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--ca", "/collective/certs/ca/alice-ca.crt", "--cert", "/collective/certs/coordinators/alice-coordinator.crt", "--key", "/collective/certs/coordinators/alice-coordinator.key"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  alice-node-01:
+    build: ../..
+    container_name: alice-node-01
+    hostname: alice-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "alice",
+      "--node-id", "alice-node-01",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      alice-coordinator:
+        condition: service_healthy
+    volumes:
+      - alice-certs:/collective/certs
+      - alice-node-01-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.11
+
+  alice-node-02:
+    build: ../..
+    container_name: alice-node-02
+    hostname: alice-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "alice",
+      "--node-id", "alice-node-02",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      alice-coordinator:
+        condition: service_healthy
+    volumes:
+      - alice-certs:/collective/certs
+      - alice-node-02-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.12
+
+  alice-node-03:
+    build: ../..
+    container_name: alice-node-03
+    hostname: alice-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=alice
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=alice-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=alice-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "alice",
+      "--node-id", "alice-node-03",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      alice-coordinator:
+        condition: service_healthy
+    volumes:
+      - alice-certs:/collective/certs
+      - alice-node-03-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.13
+
+  # ============================================
+  # BOB'S HOMELAB (garage.bob.collective)
+  # ============================================
+  
+  bob-coordinator:
+    build: ../..
+    container_name: bob-coordinator
+    hostname: bob-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=bob-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_FEDERATION_DOMAIN=homelab.collective
+      - COLLECTIVE_BOOTSTRAP_PEERS=alice@172.20.0.10:8001,carol@172.20.0.30:8001
+    command: [
+      "coordinator",
+      "--member-id", "bob",
+      "--address", ":8001"
+    ]
+    ports:
+      - "8002:8001"  # gRPC API (mapped to different host port)
+      - "9092:9090"  # Prometheus metrics
+      - "9002:9001"  # Bootstrap server for invite redemption
+    volumes:
+      - bob-certs:/collective/certs
+      - bob-coord-data:/data
+      - federation-ca:/collective/federation
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.20
+        aliases:
+          - bob.garage.bob.collective
+          - coordinator.garage.bob.collective
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--ca", "/collective/certs/ca/bob-ca.crt", "--cert", "/collective/certs/coordinators/bob-coordinator.crt", "--key", "/collective/certs/coordinators/bob-coordinator.key"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  bob-node-01:
+    build: ../..
+    container_name: bob-node-01
+    hostname: bob-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "bob",
+      "--node-id", "bob-node-01",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      bob-coordinator:
+        condition: service_healthy
+    volumes:
+      - bob-certs:/collective/certs
+      - bob-node-01-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.21
+
+  bob-node-02:
+    build: ../..
+    container_name: bob-node-02
+    hostname: bob-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "bob",
+      "--node-id", "bob-node-02",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      bob-coordinator:
+        condition: service_healthy
+    volumes:
+      - bob-certs:/collective/certs
+      - bob-node-02-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.22
+
+  bob-node-03:
+    build: ../..
+    container_name: bob-node-03
+    hostname: bob-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=bob
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=bob-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=bob-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "bob",
+      "--node-id", "bob-node-03",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      bob-coordinator:
+        condition: service_healthy
+    volumes:
+      - bob-certs:/collective/certs
+      - bob-node-03-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.23
+
+  # ============================================
+  # CAROL'S HOMELAB (office.carol.collective)
+  # ============================================
+  
+  carol-coordinator:
+    build: ../..
+    container_name: carol-coordinator
+    hostname: carol-coordinator
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=coordinator
+      - COLLECTIVE_COMPONENT_ID=carol-coordinator
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_FEDERATION_DOMAIN=homelab.collective
+      - COLLECTIVE_BOOTSTRAP_PEERS=alice@172.20.0.10:8001,bob@172.20.0.20:8001
+    command: [
+      "coordinator",
+      "--member-id", "carol",
+      "--address", ":8001"
+    ]
+    ports:
+      - "8003:8001"  # gRPC API (mapped to different host port)
+      - "9093:9090"  # Prometheus metrics
+      - "9003:9001"  # Bootstrap server for invite redemption
+    volumes:
+      - carol-certs:/collective/certs
+      - carol-coord-data:/data
+      - federation-ca:/collective/federation
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.30
+        aliases:
+          - carol.office.carol.collective
+          - coordinator.office.carol.collective
+    healthcheck:
+      test: ["CMD", "collective", "status", "--coordinator", "localhost:8001", "--ca", "/collective/certs/ca/carol-ca.crt", "--cert", "/collective/certs/coordinators/carol-coordinator.crt", "--key", "/collective/certs/coordinators/carol-coordinator.key"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  carol-node-01:
+    build: ../..
+    container_name: carol-node-01
+    hostname: carol-node-01
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-01
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "carol",
+      "--node-id", "carol-node-01",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      carol-coordinator:
+        condition: service_healthy
+    volumes:
+      - carol-certs:/collective/certs
+      - carol-node-01-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.31
+
+  carol-node-02:
+    build: ../..
+    container_name: carol-node-02
+    hostname: carol-node-02
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-02
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "carol",
+      "--node-id", "carol-node-02",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      carol-coordinator:
+        condition: service_healthy
+    volumes:
+      - carol-certs:/collective/certs
+      - carol-node-02-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.32
+
+  carol-node-03:
+    build: ../..
+    container_name: carol-node-03
+    hostname: carol-node-03
+    environment:
+      - COLLECTIVE_MEMBER_ID=carol
+      - COLLECTIVE_COMPONENT_TYPE=node
+      - COLLECTIVE_COMPONENT_ID=carol-node-03
+      - COLLECTIVE_COORDINATOR_ADDRESS=carol-coordinator:8001
+      - COLLECTIVE_AUTO_TLS=true
+      - COLLECTIVE_STORAGE_CAPACITY=536870912  # 512MB
+    command: [
+      "node",
+      "--member-id", "carol",
+      "--node-id", "carol-node-03",
+      "--address", ":9001",
+      "--capacity", "512MB"
+    ]
+    depends_on:
+      carol-coordinator:
+        condition: service_healthy
+    volumes:
+      - carol-certs:/collective/certs
+      - carol-node-03-data:/data
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.33
+
+  # ============================================
+  # MONITORING
+  # ============================================
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      collective-net:
+        ipv4_address: 172.20.0.100
+    depends_on:
+      - alice-coordinator
+      - bob-coordinator
+      - carol-coordinator
+
+volumes:
+  # Certificate volumes (per member for security isolation)
+  alice-certs:
+    driver: local
+  bob-certs:
+    driver: local
+  carol-certs:
+    driver: local
+  
+  # Shared federation root CA
+  federation-ca:
+    driver: local
+  
+  # Data volumes for coordinators
+  alice-coord-data:
+    driver: local
+  bob-coord-data:
+    driver: local
+  carol-coord-data:
+    driver: local
+  
+  # Data volumes for storage nodes
+  alice-node-01-data:
+    driver: local
+  alice-node-02-data:
+    driver: local
+  alice-node-03-data:
+    driver: local
+  bob-node-01-data:
+    driver: local
+  bob-node-02-data:
+    driver: local
+  bob-node-03-data:
+    driver: local
+  carol-node-01-data:
+    driver: local
+  carol-node-02-data:
+    driver: local
+  carol-node-03-data:
+    driver: local
+  
+  # Prometheus data
+  prometheus-data:
+    driver: local
+
+networks:
+  collective-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

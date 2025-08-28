@@ -287,22 +287,22 @@ var authInfoCmd = &cobra.Command{
 				return fmt.Errorf("failed to load config: %w", err)
 			}
 
-			if cfg.CurrentContext == "" {
-				return fmt.Errorf("no current context set")
+			if cfg.Defaults.PreferredCollective == "" {
+				return fmt.Errorf("no preferred collective set - use 'collective federated set-default'")
 			}
 
-			ctx, err := cfg.GetContext(cfg.CurrentContext)
+			collective, err := cfg.GetCollectiveByID(cfg.Defaults.PreferredCollective)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get preferred collective: %w", err)
 			}
 
-			fmt.Printf("=== Authentication Information for Context: %s ===\n\n", ctx.Name)
+			fmt.Printf("=== Authentication Information for Collective: %s ===\n\n", collective.CollectiveID)
 
 			// Display CA certificate info
-			if ctx.Auth.CAPath != "" {
+			if collective.Certificates.CACert != "" {
 				fmt.Println("CA CERTIFICATE:")
-				fmt.Printf("Path: %s\n", ctx.Auth.CAPath)
-				if info, err := auth.LoadCertificateInfo(ctx.Auth.CAPath); err == nil {
+				fmt.Printf("Path: %s\n", collective.Certificates.CACert)
+				if info, err := auth.LoadCertificateInfo(collective.Certificates.CACert); err == nil {
 					displayCertInfo(info, "  ")
 				} else {
 					fmt.Printf("  Error: %v\n", err)
@@ -311,10 +311,10 @@ var authInfoCmd = &cobra.Command{
 			}
 
 			// Display client certificate info
-			if ctx.Auth.CertPath != "" {
+			if collective.Certificates.ClientCert != "" {
 				fmt.Println("CLIENT CERTIFICATE:")
-				fmt.Printf("Path: %s\n", ctx.Auth.CertPath)
-				if info, err := auth.LoadCertificateInfo(ctx.Auth.CertPath); err == nil {
+				fmt.Printf("Path: %s\n", collective.Certificates.ClientCert)
+				if info, err := auth.LoadCertificateInfo(collective.Certificates.ClientCert); err == nil {
 					displayCertInfo(info, "  ")
 
 					// Check expiry warning
@@ -329,9 +329,9 @@ var authInfoCmd = &cobra.Command{
 			}
 
 			// Verify chain
-			if ctx.Auth.CertPath != "" && ctx.Auth.CAPath != "" {
+			if collective.Certificates.ClientCert != "" && collective.Certificates.CACert != "" {
 				fmt.Println("CERTIFICATE CHAIN VERIFICATION:")
-				if err := auth.VerifyCertificateChain(ctx.Auth.CertPath, ctx.Auth.CAPath); err == nil {
+				if err := auth.VerifyCertificateChain(collective.Certificates.ClientCert, collective.Certificates.CACert); err == nil {
 					fmt.Println("  ✅ Certificate chain is valid")
 				} else {
 					fmt.Printf("  ❌ Verification failed: %v\n", err)
@@ -443,6 +443,9 @@ func authCommand() *cobra.Command {
 	authCmd.AddCommand(authExportCmd)
 	authCmd.AddCommand(authAutoInitCmd)
 	authCmd.AddCommand(authInfoCmd)
+	
+	// Add federation CA commands
+	AddFederationCACommands(authCmd)
 
 	return authCmd
 }

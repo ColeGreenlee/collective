@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.8
 // 	protoc        v3.21.12
-// source: proto/coordinator.proto
+// source: coordinator.proto
 
 package protocol
 
@@ -29,7 +29,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[0]
+	mi := &file_coordinator_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +41,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[0]
+	mi := &file_coordinator_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +54,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{0}
+	return file_coordinator_proto_rawDescGZIP(), []int{0}
 }
 
 type GetStatusResponse struct {
@@ -72,7 +72,7 @@ type GetStatusResponse struct {
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[1]
+	mi := &file_coordinator_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -84,7 +84,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[1]
+	mi := &file_coordinator_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -97,7 +97,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{1}
+	return file_coordinator_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetStatusResponse) GetMemberId() string {
@@ -161,7 +161,7 @@ type PeerInfo struct {
 
 func (x *PeerInfo) Reset() {
 	*x = PeerInfo{}
-	mi := &file_proto_coordinator_proto_msgTypes[2]
+	mi := &file_coordinator_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +173,7 @@ func (x *PeerInfo) String() string {
 func (*PeerInfo) ProtoMessage() {}
 
 func (x *PeerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[2]
+	mi := &file_coordinator_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,7 +186,7 @@ func (x *PeerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerInfo.ProtoReflect.Descriptor instead.
 func (*PeerInfo) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{2}
+	return file_coordinator_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PeerInfo) GetMemberId() string {
@@ -229,7 +229,7 @@ type RegisterNodeRequest struct {
 
 func (x *RegisterNodeRequest) Reset() {
 	*x = RegisterNodeRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[3]
+	mi := &file_coordinator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +241,7 @@ func (x *RegisterNodeRequest) String() string {
 func (*RegisterNodeRequest) ProtoMessage() {}
 
 func (x *RegisterNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[3]
+	mi := &file_coordinator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +254,7 @@ func (x *RegisterNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterNodeRequest.ProtoReflect.Descriptor instead.
 func (*RegisterNodeRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{3}
+	return file_coordinator_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RegisterNodeRequest) GetNodeId() string {
@@ -295,7 +295,7 @@ type RegisterNodeResponse struct {
 
 func (x *RegisterNodeResponse) Reset() {
 	*x = RegisterNodeResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[4]
+	mi := &file_coordinator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -307,7 +307,7 @@ func (x *RegisterNodeResponse) String() string {
 func (*RegisterNodeResponse) ProtoMessage() {}
 
 func (x *RegisterNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[4]
+	mi := &file_coordinator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -320,7 +320,7 @@ func (x *RegisterNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterNodeResponse.ProtoReflect.Descriptor instead.
 func (*RegisterNodeResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{4}
+	return file_coordinator_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RegisterNodeResponse) GetSuccess() bool {
@@ -348,7 +348,7 @@ type PeerConnectRequest struct {
 
 func (x *PeerConnectRequest) Reset() {
 	*x = PeerConnectRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[5]
+	mi := &file_coordinator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -360,7 +360,7 @@ func (x *PeerConnectRequest) String() string {
 func (*PeerConnectRequest) ProtoMessage() {}
 
 func (x *PeerConnectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[5]
+	mi := &file_coordinator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -373,7 +373,7 @@ func (x *PeerConnectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerConnectRequest.ProtoReflect.Descriptor instead.
 func (*PeerConnectRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{5}
+	return file_coordinator_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PeerConnectRequest) GetMemberId() string {
@@ -408,7 +408,7 @@ type PeerConnectResponse struct {
 
 func (x *PeerConnectResponse) Reset() {
 	*x = PeerConnectResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[6]
+	mi := &file_coordinator_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -420,7 +420,7 @@ func (x *PeerConnectResponse) String() string {
 func (*PeerConnectResponse) ProtoMessage() {}
 
 func (x *PeerConnectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[6]
+	mi := &file_coordinator_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,7 +433,7 @@ func (x *PeerConnectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerConnectResponse.ProtoReflect.Descriptor instead.
 func (*PeerConnectResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{6}
+	return file_coordinator_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PeerConnectResponse) GetAccepted() bool {
@@ -466,7 +466,7 @@ type PeerDisconnectRequest struct {
 
 func (x *PeerDisconnectRequest) Reset() {
 	*x = PeerDisconnectRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[7]
+	mi := &file_coordinator_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -478,7 +478,7 @@ func (x *PeerDisconnectRequest) String() string {
 func (*PeerDisconnectRequest) ProtoMessage() {}
 
 func (x *PeerDisconnectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[7]
+	mi := &file_coordinator_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -491,7 +491,7 @@ func (x *PeerDisconnectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerDisconnectRequest.ProtoReflect.Descriptor instead.
 func (*PeerDisconnectRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{7}
+	return file_coordinator_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PeerDisconnectRequest) GetMemberId() string {
@@ -510,7 +510,7 @@ type PeerDisconnectResponse struct {
 
 func (x *PeerDisconnectResponse) Reset() {
 	*x = PeerDisconnectResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[8]
+	mi := &file_coordinator_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +522,7 @@ func (x *PeerDisconnectResponse) String() string {
 func (*PeerDisconnectResponse) ProtoMessage() {}
 
 func (x *PeerDisconnectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[8]
+	mi := &file_coordinator_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +535,7 @@ func (x *PeerDisconnectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerDisconnectResponse.ProtoReflect.Descriptor instead.
 func (*PeerDisconnectResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{8}
+	return file_coordinator_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PeerDisconnectResponse) GetSuccess() bool {
@@ -555,7 +555,7 @@ type ShareNodeListRequest struct {
 
 func (x *ShareNodeListRequest) Reset() {
 	*x = ShareNodeListRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[9]
+	mi := &file_coordinator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -567,7 +567,7 @@ func (x *ShareNodeListRequest) String() string {
 func (*ShareNodeListRequest) ProtoMessage() {}
 
 func (x *ShareNodeListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[9]
+	mi := &file_coordinator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -580,7 +580,7 @@ func (x *ShareNodeListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareNodeListRequest.ProtoReflect.Descriptor instead.
 func (*ShareNodeListRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{9}
+	return file_coordinator_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ShareNodeListRequest) GetMemberId() string {
@@ -606,7 +606,7 @@ type ShareNodeListResponse struct {
 
 func (x *ShareNodeListResponse) Reset() {
 	*x = ShareNodeListResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[10]
+	mi := &file_coordinator_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -618,7 +618,7 @@ func (x *ShareNodeListResponse) String() string {
 func (*ShareNodeListResponse) ProtoMessage() {}
 
 func (x *ShareNodeListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[10]
+	mi := &file_coordinator_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -631,7 +631,7 @@ func (x *ShareNodeListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareNodeListResponse.ProtoReflect.Descriptor instead.
 func (*ShareNodeListResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{10}
+	return file_coordinator_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ShareNodeListResponse) GetSuccess() bool {
@@ -655,7 +655,7 @@ type NodeInfo struct {
 
 func (x *NodeInfo) Reset() {
 	*x = NodeInfo{}
-	mi := &file_proto_coordinator_proto_msgTypes[11]
+	mi := &file_coordinator_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +667,7 @@ func (x *NodeInfo) String() string {
 func (*NodeInfo) ProtoMessage() {}
 
 func (x *NodeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[11]
+	mi := &file_coordinator_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +680,7 @@ func (x *NodeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeInfo.ProtoReflect.Descriptor instead.
 func (*NodeInfo) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{11}
+	return file_coordinator_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *NodeInfo) GetNodeId() string {
@@ -736,7 +736,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[12]
+	mi := &file_coordinator_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -748,7 +748,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[12]
+	mi := &file_coordinator_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -761,7 +761,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{12}
+	return file_coordinator_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *HeartbeatRequest) GetMemberId() string {
@@ -796,7 +796,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[13]
+	mi := &file_coordinator_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +808,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[13]
+	mi := &file_coordinator_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +821,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{13}
+	return file_coordinator_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *HeartbeatResponse) GetMemberId() string {
@@ -856,7 +856,7 @@ type StoreFileRequest struct {
 
 func (x *StoreFileRequest) Reset() {
 	*x = StoreFileRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[14]
+	mi := &file_coordinator_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -868,7 +868,7 @@ func (x *StoreFileRequest) String() string {
 func (*StoreFileRequest) ProtoMessage() {}
 
 func (x *StoreFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[14]
+	mi := &file_coordinator_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -881,7 +881,7 @@ func (x *StoreFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoreFileRequest.ProtoReflect.Descriptor instead.
 func (*StoreFileRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{14}
+	return file_coordinator_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *StoreFileRequest) GetFileId() string {
@@ -916,7 +916,7 @@ type StoreFileResponse struct {
 
 func (x *StoreFileResponse) Reset() {
 	*x = StoreFileResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[15]
+	mi := &file_coordinator_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -928,7 +928,7 @@ func (x *StoreFileResponse) String() string {
 func (*StoreFileResponse) ProtoMessage() {}
 
 func (x *StoreFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[15]
+	mi := &file_coordinator_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +941,7 @@ func (x *StoreFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoreFileResponse.ProtoReflect.Descriptor instead.
 func (*StoreFileResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{15}
+	return file_coordinator_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StoreFileResponse) GetSuccess() bool {
@@ -974,7 +974,7 @@ type RetrieveFileRequest struct {
 
 func (x *RetrieveFileRequest) Reset() {
 	*x = RetrieveFileRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[16]
+	mi := &file_coordinator_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -986,7 +986,7 @@ func (x *RetrieveFileRequest) String() string {
 func (*RetrieveFileRequest) ProtoMessage() {}
 
 func (x *RetrieveFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[16]
+	mi := &file_coordinator_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -999,7 +999,7 @@ func (x *RetrieveFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrieveFileRequest.ProtoReflect.Descriptor instead.
 func (*RetrieveFileRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{16}
+	return file_coordinator_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RetrieveFileRequest) GetFileId() string {
@@ -1020,7 +1020,7 @@ type RetrieveFileResponse struct {
 
 func (x *RetrieveFileResponse) Reset() {
 	*x = RetrieveFileResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[17]
+	mi := &file_coordinator_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1032,7 +1032,7 @@ func (x *RetrieveFileResponse) String() string {
 func (*RetrieveFileResponse) ProtoMessage() {}
 
 func (x *RetrieveFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[17]
+	mi := &file_coordinator_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1045,7 +1045,7 @@ func (x *RetrieveFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrieveFileResponse.ProtoReflect.Descriptor instead.
 func (*RetrieveFileResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{17}
+	return file_coordinator_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RetrieveFileResponse) GetSuccess() bool {
@@ -1079,7 +1079,7 @@ type UpdateMetadataRequest struct {
 
 func (x *UpdateMetadataRequest) Reset() {
 	*x = UpdateMetadataRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[18]
+	mi := &file_coordinator_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1091,7 +1091,7 @@ func (x *UpdateMetadataRequest) String() string {
 func (*UpdateMetadataRequest) ProtoMessage() {}
 
 func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[18]
+	mi := &file_coordinator_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1104,7 +1104,7 @@ func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{18}
+	return file_coordinator_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateMetadataRequest) GetFileId() string {
@@ -1130,7 +1130,7 @@ type UpdateMetadataResponse struct {
 
 func (x *UpdateMetadataResponse) Reset() {
 	*x = UpdateMetadataResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[19]
+	mi := &file_coordinator_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1142,7 +1142,7 @@ func (x *UpdateMetadataResponse) String() string {
 func (*UpdateMetadataResponse) ProtoMessage() {}
 
 func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[19]
+	mi := &file_coordinator_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1155,7 +1155,7 @@ func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{19}
+	return file_coordinator_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdateMetadataResponse) GetSuccess() bool {
@@ -1179,7 +1179,7 @@ type FileMetadata struct {
 
 func (x *FileMetadata) Reset() {
 	*x = FileMetadata{}
-	mi := &file_proto_coordinator_proto_msgTypes[20]
+	mi := &file_coordinator_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1191,7 +1191,7 @@ func (x *FileMetadata) String() string {
 func (*FileMetadata) ProtoMessage() {}
 
 func (x *FileMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[20]
+	mi := &file_coordinator_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1204,7 +1204,7 @@ func (x *FileMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileMetadata.ProtoReflect.Descriptor instead.
 func (*FileMetadata) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{20}
+	return file_coordinator_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *FileMetadata) GetFileId() string {
@@ -1261,7 +1261,7 @@ type ChunkLocation struct {
 
 func (x *ChunkLocation) Reset() {
 	*x = ChunkLocation{}
-	mi := &file_proto_coordinator_proto_msgTypes[21]
+	mi := &file_coordinator_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1273,7 +1273,7 @@ func (x *ChunkLocation) String() string {
 func (*ChunkLocation) ProtoMessage() {}
 
 func (x *ChunkLocation) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[21]
+	mi := &file_coordinator_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1286,7 +1286,7 @@ func (x *ChunkLocation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChunkLocation.ProtoReflect.Descriptor instead.
 func (*ChunkLocation) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{21}
+	return file_coordinator_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ChunkLocation) GetChunkId() string {
@@ -1330,7 +1330,7 @@ type SyncStateRequest struct {
 
 func (x *SyncStateRequest) Reset() {
 	*x = SyncStateRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[22]
+	mi := &file_coordinator_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1342,7 +1342,7 @@ func (x *SyncStateRequest) String() string {
 func (*SyncStateRequest) ProtoMessage() {}
 
 func (x *SyncStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[22]
+	mi := &file_coordinator_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1355,7 +1355,7 @@ func (x *SyncStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncStateRequest.ProtoReflect.Descriptor instead.
 func (*SyncStateRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{22}
+	return file_coordinator_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SyncStateRequest) GetMemberId() string {
@@ -1397,7 +1397,7 @@ type SyncStateResponse struct {
 
 func (x *SyncStateResponse) Reset() {
 	*x = SyncStateResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[23]
+	mi := &file_coordinator_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1409,7 +1409,7 @@ func (x *SyncStateResponse) String() string {
 func (*SyncStateResponse) ProtoMessage() {}
 
 func (x *SyncStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[23]
+	mi := &file_coordinator_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1422,7 +1422,7 @@ func (x *SyncStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncStateResponse.ProtoReflect.Descriptor instead.
 func (*SyncStateResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{23}
+	return file_coordinator_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SyncStateResponse) GetSuccess() bool {
@@ -1457,7 +1457,7 @@ type CreateDirectoryRequest struct {
 
 func (x *CreateDirectoryRequest) Reset() {
 	*x = CreateDirectoryRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[24]
+	mi := &file_coordinator_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1469,7 +1469,7 @@ func (x *CreateDirectoryRequest) String() string {
 func (*CreateDirectoryRequest) ProtoMessage() {}
 
 func (x *CreateDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[24]
+	mi := &file_coordinator_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1482,7 +1482,7 @@ func (x *CreateDirectoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*CreateDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{24}
+	return file_coordinator_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CreateDirectoryRequest) GetPath() string {
@@ -1509,7 +1509,7 @@ type CreateDirectoryResponse struct {
 
 func (x *CreateDirectoryResponse) Reset() {
 	*x = CreateDirectoryResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[25]
+	mi := &file_coordinator_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1521,7 +1521,7 @@ func (x *CreateDirectoryResponse) String() string {
 func (*CreateDirectoryResponse) ProtoMessage() {}
 
 func (x *CreateDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[25]
+	mi := &file_coordinator_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1534,7 +1534,7 @@ func (x *CreateDirectoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*CreateDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{25}
+	return file_coordinator_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CreateDirectoryResponse) GetSuccess() bool {
@@ -1560,7 +1560,7 @@ type ListDirectoryRequest struct {
 
 func (x *ListDirectoryRequest) Reset() {
 	*x = ListDirectoryRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[26]
+	mi := &file_coordinator_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1572,7 @@ func (x *ListDirectoryRequest) String() string {
 func (*ListDirectoryRequest) ProtoMessage() {}
 
 func (x *ListDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[26]
+	mi := &file_coordinator_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1585,7 @@ func (x *ListDirectoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*ListDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{26}
+	return file_coordinator_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListDirectoryRequest) GetPath() string {
@@ -1605,7 +1605,7 @@ type ListDirectoryResponse struct {
 
 func (x *ListDirectoryResponse) Reset() {
 	*x = ListDirectoryResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[27]
+	mi := &file_coordinator_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1617,7 +1617,7 @@ func (x *ListDirectoryResponse) String() string {
 func (*ListDirectoryResponse) ProtoMessage() {}
 
 func (x *ListDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[27]
+	mi := &file_coordinator_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1630,7 +1630,7 @@ func (x *ListDirectoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*ListDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{27}
+	return file_coordinator_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListDirectoryResponse) GetSuccess() bool {
@@ -1657,7 +1657,7 @@ type DeleteDirectoryRequest struct {
 
 func (x *DeleteDirectoryRequest) Reset() {
 	*x = DeleteDirectoryRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[28]
+	mi := &file_coordinator_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1669,7 +1669,7 @@ func (x *DeleteDirectoryRequest) String() string {
 func (*DeleteDirectoryRequest) ProtoMessage() {}
 
 func (x *DeleteDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[28]
+	mi := &file_coordinator_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1682,7 +1682,7 @@ func (x *DeleteDirectoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{28}
+	return file_coordinator_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *DeleteDirectoryRequest) GetPath() string {
@@ -1709,7 +1709,7 @@ type DeleteDirectoryResponse struct {
 
 func (x *DeleteDirectoryResponse) Reset() {
 	*x = DeleteDirectoryResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[29]
+	mi := &file_coordinator_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1721,7 +1721,7 @@ func (x *DeleteDirectoryResponse) String() string {
 func (*DeleteDirectoryResponse) ProtoMessage() {}
 
 func (x *DeleteDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[29]
+	mi := &file_coordinator_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1734,7 +1734,7 @@ func (x *DeleteDirectoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*DeleteDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{29}
+	return file_coordinator_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *DeleteDirectoryResponse) GetSuccess() bool {
@@ -1760,7 +1760,7 @@ type StatEntryRequest struct {
 
 func (x *StatEntryRequest) Reset() {
 	*x = StatEntryRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[30]
+	mi := &file_coordinator_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1772,7 +1772,7 @@ func (x *StatEntryRequest) String() string {
 func (*StatEntryRequest) ProtoMessage() {}
 
 func (x *StatEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[30]
+	mi := &file_coordinator_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1785,7 +1785,7 @@ func (x *StatEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatEntryRequest.ProtoReflect.Descriptor instead.
 func (*StatEntryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{30}
+	return file_coordinator_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *StatEntryRequest) GetPath() string {
@@ -1805,7 +1805,7 @@ type StatEntryResponse struct {
 
 func (x *StatEntryResponse) Reset() {
 	*x = StatEntryResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[31]
+	mi := &file_coordinator_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1817,7 +1817,7 @@ func (x *StatEntryResponse) String() string {
 func (*StatEntryResponse) ProtoMessage() {}
 
 func (x *StatEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[31]
+	mi := &file_coordinator_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1830,7 +1830,7 @@ func (x *StatEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatEntryResponse.ProtoReflect.Descriptor instead.
 func (*StatEntryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{31}
+	return file_coordinator_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *StatEntryResponse) GetSuccess() bool {
@@ -1857,7 +1857,7 @@ type MoveEntryRequest struct {
 
 func (x *MoveEntryRequest) Reset() {
 	*x = MoveEntryRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[32]
+	mi := &file_coordinator_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1869,7 +1869,7 @@ func (x *MoveEntryRequest) String() string {
 func (*MoveEntryRequest) ProtoMessage() {}
 
 func (x *MoveEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[32]
+	mi := &file_coordinator_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1882,7 +1882,7 @@ func (x *MoveEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveEntryRequest.ProtoReflect.Descriptor instead.
 func (*MoveEntryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{32}
+	return file_coordinator_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *MoveEntryRequest) GetOldPath() string {
@@ -1909,7 +1909,7 @@ type MoveEntryResponse struct {
 
 func (x *MoveEntryResponse) Reset() {
 	*x = MoveEntryResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[33]
+	mi := &file_coordinator_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1921,7 +1921,7 @@ func (x *MoveEntryResponse) String() string {
 func (*MoveEntryResponse) ProtoMessage() {}
 
 func (x *MoveEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[33]
+	mi := &file_coordinator_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1934,7 +1934,7 @@ func (x *MoveEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveEntryResponse.ProtoReflect.Descriptor instead.
 func (*MoveEntryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{33}
+	return file_coordinator_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *MoveEntryResponse) GetSuccess() bool {
@@ -1966,7 +1966,7 @@ type DirectoryEntry struct {
 
 func (x *DirectoryEntry) Reset() {
 	*x = DirectoryEntry{}
-	mi := &file_proto_coordinator_proto_msgTypes[34]
+	mi := &file_coordinator_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1978,7 +1978,7 @@ func (x *DirectoryEntry) String() string {
 func (*DirectoryEntry) ProtoMessage() {}
 
 func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[34]
+	mi := &file_coordinator_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1991,7 +1991,7 @@ func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectoryEntry.ProtoReflect.Descriptor instead.
 func (*DirectoryEntry) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{34}
+	return file_coordinator_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DirectoryEntry) GetName() string {
@@ -2054,7 +2054,7 @@ type CreateFileRequest struct {
 
 func (x *CreateFileRequest) Reset() {
 	*x = CreateFileRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[35]
+	mi := &file_coordinator_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2066,7 +2066,7 @@ func (x *CreateFileRequest) String() string {
 func (*CreateFileRequest) ProtoMessage() {}
 
 func (x *CreateFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[35]
+	mi := &file_coordinator_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2079,7 +2079,7 @@ func (x *CreateFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateFileRequest.ProtoReflect.Descriptor instead.
 func (*CreateFileRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{35}
+	return file_coordinator_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CreateFileRequest) GetPath() string {
@@ -2106,7 +2106,7 @@ type CreateFileResponse struct {
 
 func (x *CreateFileResponse) Reset() {
 	*x = CreateFileResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[36]
+	mi := &file_coordinator_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2118,7 +2118,7 @@ func (x *CreateFileResponse) String() string {
 func (*CreateFileResponse) ProtoMessage() {}
 
 func (x *CreateFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[36]
+	mi := &file_coordinator_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2131,7 +2131,7 @@ func (x *CreateFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateFileResponse.ProtoReflect.Descriptor instead.
 func (*CreateFileResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{36}
+	return file_coordinator_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CreateFileResponse) GetSuccess() bool {
@@ -2159,7 +2159,7 @@ type ReadFileRequest struct {
 
 func (x *ReadFileRequest) Reset() {
 	*x = ReadFileRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[37]
+	mi := &file_coordinator_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2171,7 +2171,7 @@ func (x *ReadFileRequest) String() string {
 func (*ReadFileRequest) ProtoMessage() {}
 
 func (x *ReadFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[37]
+	mi := &file_coordinator_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +2184,7 @@ func (x *ReadFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadFileRequest.ProtoReflect.Descriptor instead.
 func (*ReadFileRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{37}
+	return file_coordinator_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ReadFileRequest) GetPath() string {
@@ -2219,7 +2219,7 @@ type ReadFileResponse struct {
 
 func (x *ReadFileResponse) Reset() {
 	*x = ReadFileResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[38]
+	mi := &file_coordinator_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2231,7 +2231,7 @@ func (x *ReadFileResponse) String() string {
 func (*ReadFileResponse) ProtoMessage() {}
 
 func (x *ReadFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[38]
+	mi := &file_coordinator_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2244,7 +2244,7 @@ func (x *ReadFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadFileResponse.ProtoReflect.Descriptor instead.
 func (*ReadFileResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{38}
+	return file_coordinator_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ReadFileResponse) GetSuccess() bool {
@@ -2279,7 +2279,7 @@ type WriteFileRequest struct {
 
 func (x *WriteFileRequest) Reset() {
 	*x = WriteFileRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[39]
+	mi := &file_coordinator_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2291,7 +2291,7 @@ func (x *WriteFileRequest) String() string {
 func (*WriteFileRequest) ProtoMessage() {}
 
 func (x *WriteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[39]
+	mi := &file_coordinator_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2304,7 +2304,7 @@ func (x *WriteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteFileRequest.ProtoReflect.Descriptor instead.
 func (*WriteFileRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{39}
+	return file_coordinator_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *WriteFileRequest) GetPath() string {
@@ -2339,7 +2339,7 @@ type WriteFileResponse struct {
 
 func (x *WriteFileResponse) Reset() {
 	*x = WriteFileResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[40]
+	mi := &file_coordinator_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2351,7 +2351,7 @@ func (x *WriteFileResponse) String() string {
 func (*WriteFileResponse) ProtoMessage() {}
 
 func (x *WriteFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[40]
+	mi := &file_coordinator_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2364,7 +2364,7 @@ func (x *WriteFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteFileResponse.ProtoReflect.Descriptor instead.
 func (*WriteFileResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{40}
+	return file_coordinator_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *WriteFileResponse) GetSuccess() bool {
@@ -2397,7 +2397,7 @@ type DeleteFileRequest struct {
 
 func (x *DeleteFileRequest) Reset() {
 	*x = DeleteFileRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[41]
+	mi := &file_coordinator_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2409,7 +2409,7 @@ func (x *DeleteFileRequest) String() string {
 func (*DeleteFileRequest) ProtoMessage() {}
 
 func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[41]
+	mi := &file_coordinator_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2422,7 +2422,7 @@ func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{41}
+	return file_coordinator_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DeleteFileRequest) GetPath() string {
@@ -2442,7 +2442,7 @@ type DeleteFileResponse struct {
 
 func (x *DeleteFileResponse) Reset() {
 	*x = DeleteFileResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[42]
+	mi := &file_coordinator_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2454,7 +2454,7 @@ func (x *DeleteFileResponse) String() string {
 func (*DeleteFileResponse) ProtoMessage() {}
 
 func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[42]
+	mi := &file_coordinator_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2467,7 +2467,7 @@ func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileResponse.ProtoReflect.Descriptor instead.
 func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{42}
+	return file_coordinator_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *DeleteFileResponse) GetSuccess() bool {
@@ -2498,7 +2498,7 @@ type WriteFileStreamRequest struct {
 
 func (x *WriteFileStreamRequest) Reset() {
 	*x = WriteFileStreamRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[43]
+	mi := &file_coordinator_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2510,7 +2510,7 @@ func (x *WriteFileStreamRequest) String() string {
 func (*WriteFileStreamRequest) ProtoMessage() {}
 
 func (x *WriteFileStreamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[43]
+	mi := &file_coordinator_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2523,7 +2523,7 @@ func (x *WriteFileStreamRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteFileStreamRequest.ProtoReflect.Descriptor instead.
 func (*WriteFileStreamRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{43}
+	return file_coordinator_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *WriteFileStreamRequest) GetData() isWriteFileStreamRequest_Data {
@@ -2577,7 +2577,7 @@ type WriteFileStreamHeader struct {
 
 func (x *WriteFileStreamHeader) Reset() {
 	*x = WriteFileStreamHeader{}
-	mi := &file_proto_coordinator_proto_msgTypes[44]
+	mi := &file_coordinator_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2589,7 +2589,7 @@ func (x *WriteFileStreamHeader) String() string {
 func (*WriteFileStreamHeader) ProtoMessage() {}
 
 func (x *WriteFileStreamHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[44]
+	mi := &file_coordinator_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2602,7 +2602,7 @@ func (x *WriteFileStreamHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteFileStreamHeader.ProtoReflect.Descriptor instead.
 func (*WriteFileStreamHeader) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{44}
+	return file_coordinator_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *WriteFileStreamHeader) GetPath() string {
@@ -2631,7 +2631,7 @@ type WriteFileStreamResponse struct {
 
 func (x *WriteFileStreamResponse) Reset() {
 	*x = WriteFileStreamResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[45]
+	mi := &file_coordinator_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2643,7 +2643,7 @@ func (x *WriteFileStreamResponse) String() string {
 func (*WriteFileStreamResponse) ProtoMessage() {}
 
 func (x *WriteFileStreamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[45]
+	mi := &file_coordinator_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2656,7 +2656,7 @@ func (x *WriteFileStreamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteFileStreamResponse.ProtoReflect.Descriptor instead.
 func (*WriteFileStreamResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{45}
+	return file_coordinator_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *WriteFileStreamResponse) GetSuccess() bool {
@@ -2698,7 +2698,7 @@ type ReadFileStreamRequest struct {
 
 func (x *ReadFileStreamRequest) Reset() {
 	*x = ReadFileStreamRequest{}
-	mi := &file_proto_coordinator_proto_msgTypes[46]
+	mi := &file_coordinator_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2710,7 +2710,7 @@ func (x *ReadFileStreamRequest) String() string {
 func (*ReadFileStreamRequest) ProtoMessage() {}
 
 func (x *ReadFileStreamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[46]
+	mi := &file_coordinator_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2723,7 +2723,7 @@ func (x *ReadFileStreamRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadFileStreamRequest.ProtoReflect.Descriptor instead.
 func (*ReadFileStreamRequest) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{46}
+	return file_coordinator_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ReadFileStreamRequest) GetPath() string {
@@ -2760,7 +2760,7 @@ type ReadFileStreamResponse struct {
 
 func (x *ReadFileStreamResponse) Reset() {
 	*x = ReadFileStreamResponse{}
-	mi := &file_proto_coordinator_proto_msgTypes[47]
+	mi := &file_coordinator_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2772,7 +2772,7 @@ func (x *ReadFileStreamResponse) String() string {
 func (*ReadFileStreamResponse) ProtoMessage() {}
 
 func (x *ReadFileStreamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[47]
+	mi := &file_coordinator_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2785,7 +2785,7 @@ func (x *ReadFileStreamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadFileStreamResponse.ProtoReflect.Descriptor instead.
 func (*ReadFileStreamResponse) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{47}
+	return file_coordinator_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ReadFileStreamResponse) GetData() isReadFileStreamResponse_Data {
@@ -2839,7 +2839,7 @@ type ReadFileStreamHeader struct {
 
 func (x *ReadFileStreamHeader) Reset() {
 	*x = ReadFileStreamHeader{}
-	mi := &file_proto_coordinator_proto_msgTypes[48]
+	mi := &file_coordinator_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2851,7 +2851,7 @@ func (x *ReadFileStreamHeader) String() string {
 func (*ReadFileStreamHeader) ProtoMessage() {}
 
 func (x *ReadFileStreamHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_coordinator_proto_msgTypes[48]
+	mi := &file_coordinator_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2864,7 +2864,7 @@ func (x *ReadFileStreamHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadFileStreamHeader.ProtoReflect.Descriptor instead.
 func (*ReadFileStreamHeader) Descriptor() ([]byte, []int) {
-	return file_proto_coordinator_proto_rawDescGZIP(), []int{48}
+	return file_coordinator_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ReadFileStreamHeader) GetTotalSize() int64 {
@@ -2881,11 +2881,448 @@ func (x *ReadFileStreamHeader) GetChunkCount() int32 {
 	return 0
 }
 
-var File_proto_coordinator_proto protoreflect.FileDescriptor
+// Federation certificate management messages
+type GetFederationCARequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_proto_coordinator_proto_rawDesc = "" +
+func (x *GetFederationCARequest) Reset() {
+	*x = GetFederationCARequest{}
+	mi := &file_coordinator_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFederationCARequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFederationCARequest) ProtoMessage() {}
+
+func (x *GetFederationCARequest) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFederationCARequest.ProtoReflect.Descriptor instead.
+func (*GetFederationCARequest) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{49}
+}
+
+type GetFederationCAResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Success          bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	CaCertificate    string                 `protobuf:"bytes,2,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"` // PEM-encoded CA certificate
+	FederationDomain string                 `protobuf:"bytes,3,opt,name=federation_domain,json=federationDomain,proto3" json:"federation_domain,omitempty"`
+	Message          string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetFederationCAResponse) Reset() {
+	*x = GetFederationCAResponse{}
+	mi := &file_coordinator_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFederationCAResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFederationCAResponse) ProtoMessage() {}
+
+func (x *GetFederationCAResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFederationCAResponse.ProtoReflect.Descriptor instead.
+func (*GetFederationCAResponse) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *GetFederationCAResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GetFederationCAResponse) GetCaCertificate() string {
+	if x != nil {
+		return x.CaCertificate
+	}
+	return ""
+}
+
+func (x *GetFederationCAResponse) GetFederationDomain() string {
+	if x != nil {
+		return x.FederationDomain
+	}
+	return ""
+}
+
+func (x *GetFederationCAResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type RequestClientCertificateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Csr           string                 `protobuf:"bytes,1,opt,name=csr,proto3" json:"csr,omitempty"`                                 // PEM-encoded certificate signing request
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`       // Client identity (e.g., user@domain.collective.local)
+	InviteCode    string                 `protobuf:"bytes,3,opt,name=invite_code,json=inviteCode,proto3" json:"invite_code,omitempty"` // Invitation code for validation
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestClientCertificateRequest) Reset() {
+	*x = RequestClientCertificateRequest{}
+	mi := &file_coordinator_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestClientCertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestClientCertificateRequest) ProtoMessage() {}
+
+func (x *RequestClientCertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestClientCertificateRequest.ProtoReflect.Descriptor instead.
+func (*RequestClientCertificateRequest) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *RequestClientCertificateRequest) GetCsr() string {
+	if x != nil {
+		return x.Csr
+	}
+	return ""
+}
+
+func (x *RequestClientCertificateRequest) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *RequestClientCertificateRequest) GetInviteCode() string {
+	if x != nil {
+		return x.InviteCode
+	}
+	return ""
+}
+
+type RequestClientCertificateResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Success           bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	ClientCertificate string                 `protobuf:"bytes,2,opt,name=client_certificate,json=clientCertificate,proto3" json:"client_certificate,omitempty"` // PEM-encoded client certificate
+	CaCertificate     string                 `protobuf:"bytes,3,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"`             // PEM-encoded CA certificate for verification
+	Message           string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	CollectiveName    string                 `protobuf:"bytes,5,opt,name=collective_name,json=collectiveName,proto3" json:"collective_name,omitempty"` // Name of the collective the client is joining
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *RequestClientCertificateResponse) Reset() {
+	*x = RequestClientCertificateResponse{}
+	mi := &file_coordinator_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestClientCertificateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestClientCertificateResponse) ProtoMessage() {}
+
+func (x *RequestClientCertificateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestClientCertificateResponse.ProtoReflect.Descriptor instead.
+func (*RequestClientCertificateResponse) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *RequestClientCertificateResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *RequestClientCertificateResponse) GetClientCertificate() string {
+	if x != nil {
+		return x.ClientCertificate
+	}
+	return ""
+}
+
+func (x *RequestClientCertificateResponse) GetCaCertificate() string {
+	if x != nil {
+		return x.CaCertificate
+	}
+	return ""
+}
+
+func (x *RequestClientCertificateResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *RequestClientCertificateResponse) GetCollectiveName() string {
+	if x != nil {
+		return x.CollectiveName
+	}
+	return ""
+}
+
+type GenerateInviteRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Grants          []*DataStoreGrant      `protobuf:"bytes,1,rep,name=grants,proto3" json:"grants,omitempty"`
+	MaxUses         int32                  `protobuf:"varint,2,opt,name=max_uses,json=maxUses,proto3" json:"max_uses,omitempty"`
+	ValiditySeconds int64                  `protobuf:"varint,3,opt,name=validity_seconds,json=validitySeconds,proto3" json:"validity_seconds,omitempty"`
+	Description     string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GenerateInviteRequest) Reset() {
+	*x = GenerateInviteRequest{}
+	mi := &file_coordinator_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateInviteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateInviteRequest) ProtoMessage() {}
+
+func (x *GenerateInviteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateInviteRequest.ProtoReflect.Descriptor instead.
+func (*GenerateInviteRequest) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *GenerateInviteRequest) GetGrants() []*DataStoreGrant {
+	if x != nil {
+		return x.Grants
+	}
+	return nil
+}
+
+func (x *GenerateInviteRequest) GetMaxUses() int32 {
+	if x != nil {
+		return x.MaxUses
+	}
+	return 0
+}
+
+func (x *GenerateInviteRequest) GetValiditySeconds() int64 {
+	if x != nil {
+		return x.ValiditySeconds
+	}
+	return 0
+}
+
+func (x *GenerateInviteRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type DataStoreGrant struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Rights        []string               `protobuf:"bytes,2,rep,name=rights,proto3" json:"rights,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DataStoreGrant) Reset() {
+	*x = DataStoreGrant{}
+	mi := &file_coordinator_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DataStoreGrant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DataStoreGrant) ProtoMessage() {}
+
+func (x *DataStoreGrant) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DataStoreGrant.ProtoReflect.Descriptor instead.
+func (*DataStoreGrant) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *DataStoreGrant) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DataStoreGrant) GetRights() []string {
+	if x != nil {
+		return x.Rights
+	}
+	return nil
+}
+
+type GenerateInviteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	ExpiresAt     int64                  `protobuf:"varint,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ShareUrl      string                 `protobuf:"bytes,5,opt,name=share_url,json=shareUrl,proto3" json:"share_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateInviteResponse) Reset() {
+	*x = GenerateInviteResponse{}
+	mi := &file_coordinator_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateInviteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateInviteResponse) ProtoMessage() {}
+
+func (x *GenerateInviteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateInviteResponse.ProtoReflect.Descriptor instead.
+func (*GenerateInviteResponse) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *GenerateInviteResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GenerateInviteResponse) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *GenerateInviteResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GenerateInviteResponse) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
+func (x *GenerateInviteResponse) GetShareUrl() string {
+	if x != nil {
+		return x.ShareUrl
+	}
+	return ""
+}
+
+var File_coordinator_proto protoreflect.FileDescriptor
+
+const file_coordinator_proto_rawDesc = "" +
 	"\n" +
-	"\x17proto/coordinator.proto\x12\x10collective.proto\"\x12\n" +
+	"\x11coordinator.proto\x12\x10collective.proto\"\x12\n" +
 	"\x10GetStatusRequest\"\xe9\x02\n" +
 	"\x11GetStatusResponse\x12\x1b\n" +
 	"\tmember_id\x18\x01 \x01(\tR\bmemberId\x12;\n" +
@@ -3078,7 +3515,39 @@ const file_proto_coordinator_proto_rawDesc = "" +
 	"\n" +
 	"total_size\x18\x01 \x01(\x03R\ttotalSize\x12\x1f\n" +
 	"\vchunk_count\x18\x02 \x01(\x05R\n" +
-	"chunkCount2\xb5\x0f\n" +
+	"chunkCount\"\x18\n" +
+	"\x16GetFederationCARequest\"\xa1\x01\n" +
+	"\x17GetFederationCAResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12%\n" +
+	"\x0eca_certificate\x18\x02 \x01(\tR\rcaCertificate\x12+\n" +
+	"\x11federation_domain\x18\x03 \x01(\tR\x10federationDomain\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"q\n" +
+	"\x1fRequestClientCertificateRequest\x12\x10\n" +
+	"\x03csr\x18\x01 \x01(\tR\x03csr\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x1f\n" +
+	"\vinvite_code\x18\x03 \x01(\tR\n" +
+	"inviteCode\"\xd5\x01\n" +
+	" RequestClientCertificateResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12-\n" +
+	"\x12client_certificate\x18\x02 \x01(\tR\x11clientCertificate\x12%\n" +
+	"\x0eca_certificate\x18\x03 \x01(\tR\rcaCertificate\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x12'\n" +
+	"\x0fcollective_name\x18\x05 \x01(\tR\x0ecollectiveName\"\xb9\x01\n" +
+	"\x15GenerateInviteRequest\x128\n" +
+	"\x06grants\x18\x01 \x03(\v2 .collective.proto.DataStoreGrantR\x06grants\x12\x19\n" +
+	"\bmax_uses\x18\x02 \x01(\x05R\amaxUses\x12)\n" +
+	"\x10validity_seconds\x18\x03 \x01(\x03R\x0fvaliditySeconds\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\"<\n" +
+	"\x0eDataStoreGrant\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06rights\x18\x02 \x03(\tR\x06rights\"\x9c\x01\n" +
+	"\x16GenerateInviteResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\x03R\texpiresAt\x12\x1b\n" +
+	"\tshare_url\x18\x05 \x01(\tR\bshareUrl2\x86\x12\n" +
 	"\vCoordinator\x12Z\n" +
 	"\vPeerConnect\x12$.collective.proto.PeerConnectRequest\x1a%.collective.proto.PeerConnectResponse\x12c\n" +
 	"\x0ePeerDisconnect\x12'.collective.proto.PeerDisconnectRequest\x1a(.collective.proto.PeerDisconnectResponse\x12`\n" +
@@ -3102,73 +3571,83 @@ const file_proto_coordinator_proto_rawDesc = "" +
 	"\n" +
 	"DeleteFile\x12#.collective.proto.DeleteFileRequest\x1a$.collective.proto.DeleteFileResponse\x12h\n" +
 	"\x0fWriteFileStream\x12(.collective.proto.WriteFileStreamRequest\x1a).collective.proto.WriteFileStreamResponse(\x01\x12e\n" +
-	"\x0eReadFileStream\x12'.collective.proto.ReadFileStreamRequest\x1a(.collective.proto.ReadFileStreamResponse0\x01B\x19Z\x17collective/pkg/protocolb\x06proto3"
+	"\x0eReadFileStream\x12'.collective.proto.ReadFileStreamRequest\x1a(.collective.proto.ReadFileStreamResponse0\x01\x12f\n" +
+	"\x0fGetFederationCA\x12(.collective.proto.GetFederationCARequest\x1a).collective.proto.GetFederationCAResponse\x12\x81\x01\n" +
+	"\x18RequestClientCertificate\x121.collective.proto.RequestClientCertificateRequest\x1a2.collective.proto.RequestClientCertificateResponse\x12c\n" +
+	"\x0eGenerateInvite\x12'.collective.proto.GenerateInviteRequest\x1a(.collective.proto.GenerateInviteResponseB\x19Z\x17collective/pkg/protocolb\x06proto3"
 
 var (
-	file_proto_coordinator_proto_rawDescOnce sync.Once
-	file_proto_coordinator_proto_rawDescData []byte
+	file_coordinator_proto_rawDescOnce sync.Once
+	file_coordinator_proto_rawDescData []byte
 )
 
-func file_proto_coordinator_proto_rawDescGZIP() []byte {
-	file_proto_coordinator_proto_rawDescOnce.Do(func() {
-		file_proto_coordinator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_coordinator_proto_rawDesc), len(file_proto_coordinator_proto_rawDesc)))
+func file_coordinator_proto_rawDescGZIP() []byte {
+	file_coordinator_proto_rawDescOnce.Do(func() {
+		file_coordinator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_coordinator_proto_rawDesc), len(file_coordinator_proto_rawDesc)))
 	})
-	return file_proto_coordinator_proto_rawDescData
+	return file_coordinator_proto_rawDescData
 }
 
-var file_proto_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
-var file_proto_coordinator_proto_goTypes = []any{
-	(*GetStatusRequest)(nil),        // 0: collective.proto.GetStatusRequest
-	(*GetStatusResponse)(nil),       // 1: collective.proto.GetStatusResponse
-	(*PeerInfo)(nil),                // 2: collective.proto.PeerInfo
-	(*RegisterNodeRequest)(nil),     // 3: collective.proto.RegisterNodeRequest
-	(*RegisterNodeResponse)(nil),    // 4: collective.proto.RegisterNodeResponse
-	(*PeerConnectRequest)(nil),      // 5: collective.proto.PeerConnectRequest
-	(*PeerConnectResponse)(nil),     // 6: collective.proto.PeerConnectResponse
-	(*PeerDisconnectRequest)(nil),   // 7: collective.proto.PeerDisconnectRequest
-	(*PeerDisconnectResponse)(nil),  // 8: collective.proto.PeerDisconnectResponse
-	(*ShareNodeListRequest)(nil),    // 9: collective.proto.ShareNodeListRequest
-	(*ShareNodeListResponse)(nil),   // 10: collective.proto.ShareNodeListResponse
-	(*NodeInfo)(nil),                // 11: collective.proto.NodeInfo
-	(*HeartbeatRequest)(nil),        // 12: collective.proto.HeartbeatRequest
-	(*HeartbeatResponse)(nil),       // 13: collective.proto.HeartbeatResponse
-	(*StoreFileRequest)(nil),        // 14: collective.proto.StoreFileRequest
-	(*StoreFileResponse)(nil),       // 15: collective.proto.StoreFileResponse
-	(*RetrieveFileRequest)(nil),     // 16: collective.proto.RetrieveFileRequest
-	(*RetrieveFileResponse)(nil),    // 17: collective.proto.RetrieveFileResponse
-	(*UpdateMetadataRequest)(nil),   // 18: collective.proto.UpdateMetadataRequest
-	(*UpdateMetadataResponse)(nil),  // 19: collective.proto.UpdateMetadataResponse
-	(*FileMetadata)(nil),            // 20: collective.proto.FileMetadata
-	(*ChunkLocation)(nil),           // 21: collective.proto.ChunkLocation
-	(*SyncStateRequest)(nil),        // 22: collective.proto.SyncStateRequest
-	(*SyncStateResponse)(nil),       // 23: collective.proto.SyncStateResponse
-	(*CreateDirectoryRequest)(nil),  // 24: collective.proto.CreateDirectoryRequest
-	(*CreateDirectoryResponse)(nil), // 25: collective.proto.CreateDirectoryResponse
-	(*ListDirectoryRequest)(nil),    // 26: collective.proto.ListDirectoryRequest
-	(*ListDirectoryResponse)(nil),   // 27: collective.proto.ListDirectoryResponse
-	(*DeleteDirectoryRequest)(nil),  // 28: collective.proto.DeleteDirectoryRequest
-	(*DeleteDirectoryResponse)(nil), // 29: collective.proto.DeleteDirectoryResponse
-	(*StatEntryRequest)(nil),        // 30: collective.proto.StatEntryRequest
-	(*StatEntryResponse)(nil),       // 31: collective.proto.StatEntryResponse
-	(*MoveEntryRequest)(nil),        // 32: collective.proto.MoveEntryRequest
-	(*MoveEntryResponse)(nil),       // 33: collective.proto.MoveEntryResponse
-	(*DirectoryEntry)(nil),          // 34: collective.proto.DirectoryEntry
-	(*CreateFileRequest)(nil),       // 35: collective.proto.CreateFileRequest
-	(*CreateFileResponse)(nil),      // 36: collective.proto.CreateFileResponse
-	(*ReadFileRequest)(nil),         // 37: collective.proto.ReadFileRequest
-	(*ReadFileResponse)(nil),        // 38: collective.proto.ReadFileResponse
-	(*WriteFileRequest)(nil),        // 39: collective.proto.WriteFileRequest
-	(*WriteFileResponse)(nil),       // 40: collective.proto.WriteFileResponse
-	(*DeleteFileRequest)(nil),       // 41: collective.proto.DeleteFileRequest
-	(*DeleteFileResponse)(nil),      // 42: collective.proto.DeleteFileResponse
-	(*WriteFileStreamRequest)(nil),  // 43: collective.proto.WriteFileStreamRequest
-	(*WriteFileStreamHeader)(nil),   // 44: collective.proto.WriteFileStreamHeader
-	(*WriteFileStreamResponse)(nil), // 45: collective.proto.WriteFileStreamResponse
-	(*ReadFileStreamRequest)(nil),   // 46: collective.proto.ReadFileStreamRequest
-	(*ReadFileStreamResponse)(nil),  // 47: collective.proto.ReadFileStreamResponse
-	(*ReadFileStreamHeader)(nil),    // 48: collective.proto.ReadFileStreamHeader
+var file_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
+var file_coordinator_proto_goTypes = []any{
+	(*GetStatusRequest)(nil),                 // 0: collective.proto.GetStatusRequest
+	(*GetStatusResponse)(nil),                // 1: collective.proto.GetStatusResponse
+	(*PeerInfo)(nil),                         // 2: collective.proto.PeerInfo
+	(*RegisterNodeRequest)(nil),              // 3: collective.proto.RegisterNodeRequest
+	(*RegisterNodeResponse)(nil),             // 4: collective.proto.RegisterNodeResponse
+	(*PeerConnectRequest)(nil),               // 5: collective.proto.PeerConnectRequest
+	(*PeerConnectResponse)(nil),              // 6: collective.proto.PeerConnectResponse
+	(*PeerDisconnectRequest)(nil),            // 7: collective.proto.PeerDisconnectRequest
+	(*PeerDisconnectResponse)(nil),           // 8: collective.proto.PeerDisconnectResponse
+	(*ShareNodeListRequest)(nil),             // 9: collective.proto.ShareNodeListRequest
+	(*ShareNodeListResponse)(nil),            // 10: collective.proto.ShareNodeListResponse
+	(*NodeInfo)(nil),                         // 11: collective.proto.NodeInfo
+	(*HeartbeatRequest)(nil),                 // 12: collective.proto.HeartbeatRequest
+	(*HeartbeatResponse)(nil),                // 13: collective.proto.HeartbeatResponse
+	(*StoreFileRequest)(nil),                 // 14: collective.proto.StoreFileRequest
+	(*StoreFileResponse)(nil),                // 15: collective.proto.StoreFileResponse
+	(*RetrieveFileRequest)(nil),              // 16: collective.proto.RetrieveFileRequest
+	(*RetrieveFileResponse)(nil),             // 17: collective.proto.RetrieveFileResponse
+	(*UpdateMetadataRequest)(nil),            // 18: collective.proto.UpdateMetadataRequest
+	(*UpdateMetadataResponse)(nil),           // 19: collective.proto.UpdateMetadataResponse
+	(*FileMetadata)(nil),                     // 20: collective.proto.FileMetadata
+	(*ChunkLocation)(nil),                    // 21: collective.proto.ChunkLocation
+	(*SyncStateRequest)(nil),                 // 22: collective.proto.SyncStateRequest
+	(*SyncStateResponse)(nil),                // 23: collective.proto.SyncStateResponse
+	(*CreateDirectoryRequest)(nil),           // 24: collective.proto.CreateDirectoryRequest
+	(*CreateDirectoryResponse)(nil),          // 25: collective.proto.CreateDirectoryResponse
+	(*ListDirectoryRequest)(nil),             // 26: collective.proto.ListDirectoryRequest
+	(*ListDirectoryResponse)(nil),            // 27: collective.proto.ListDirectoryResponse
+	(*DeleteDirectoryRequest)(nil),           // 28: collective.proto.DeleteDirectoryRequest
+	(*DeleteDirectoryResponse)(nil),          // 29: collective.proto.DeleteDirectoryResponse
+	(*StatEntryRequest)(nil),                 // 30: collective.proto.StatEntryRequest
+	(*StatEntryResponse)(nil),                // 31: collective.proto.StatEntryResponse
+	(*MoveEntryRequest)(nil),                 // 32: collective.proto.MoveEntryRequest
+	(*MoveEntryResponse)(nil),                // 33: collective.proto.MoveEntryResponse
+	(*DirectoryEntry)(nil),                   // 34: collective.proto.DirectoryEntry
+	(*CreateFileRequest)(nil),                // 35: collective.proto.CreateFileRequest
+	(*CreateFileResponse)(nil),               // 36: collective.proto.CreateFileResponse
+	(*ReadFileRequest)(nil),                  // 37: collective.proto.ReadFileRequest
+	(*ReadFileResponse)(nil),                 // 38: collective.proto.ReadFileResponse
+	(*WriteFileRequest)(nil),                 // 39: collective.proto.WriteFileRequest
+	(*WriteFileResponse)(nil),                // 40: collective.proto.WriteFileResponse
+	(*DeleteFileRequest)(nil),                // 41: collective.proto.DeleteFileRequest
+	(*DeleteFileResponse)(nil),               // 42: collective.proto.DeleteFileResponse
+	(*WriteFileStreamRequest)(nil),           // 43: collective.proto.WriteFileStreamRequest
+	(*WriteFileStreamHeader)(nil),            // 44: collective.proto.WriteFileStreamHeader
+	(*WriteFileStreamResponse)(nil),          // 45: collective.proto.WriteFileStreamResponse
+	(*ReadFileStreamRequest)(nil),            // 46: collective.proto.ReadFileStreamRequest
+	(*ReadFileStreamResponse)(nil),           // 47: collective.proto.ReadFileStreamResponse
+	(*ReadFileStreamHeader)(nil),             // 48: collective.proto.ReadFileStreamHeader
+	(*GetFederationCARequest)(nil),           // 49: collective.proto.GetFederationCARequest
+	(*GetFederationCAResponse)(nil),          // 50: collective.proto.GetFederationCAResponse
+	(*RequestClientCertificateRequest)(nil),  // 51: collective.proto.RequestClientCertificateRequest
+	(*RequestClientCertificateResponse)(nil), // 52: collective.proto.RequestClientCertificateResponse
+	(*GenerateInviteRequest)(nil),            // 53: collective.proto.GenerateInviteRequest
+	(*DataStoreGrant)(nil),                   // 54: collective.proto.DataStoreGrant
+	(*GenerateInviteResponse)(nil),           // 55: collective.proto.GenerateInviteResponse
 }
-var file_proto_coordinator_proto_depIdxs = []int32{
+var file_coordinator_proto_depIdxs = []int32{
 	11, // 0: collective.proto.GetStatusResponse.local_nodes:type_name -> collective.proto.NodeInfo
 	2,  // 1: collective.proto.GetStatusResponse.peers:type_name -> collective.proto.PeerInfo
 	11, // 2: collective.proto.GetStatusResponse.remote_nodes:type_name -> collective.proto.NodeInfo
@@ -3188,65 +3667,72 @@ var file_proto_coordinator_proto_depIdxs = []int32{
 	34, // 16: collective.proto.StatEntryResponse.entry:type_name -> collective.proto.DirectoryEntry
 	44, // 17: collective.proto.WriteFileStreamRequest.header:type_name -> collective.proto.WriteFileStreamHeader
 	48, // 18: collective.proto.ReadFileStreamResponse.header:type_name -> collective.proto.ReadFileStreamHeader
-	5,  // 19: collective.proto.Coordinator.PeerConnect:input_type -> collective.proto.PeerConnectRequest
-	7,  // 20: collective.proto.Coordinator.PeerDisconnect:input_type -> collective.proto.PeerDisconnectRequest
-	9,  // 21: collective.proto.Coordinator.ShareNodeList:input_type -> collective.proto.ShareNodeListRequest
-	12, // 22: collective.proto.Coordinator.Heartbeat:input_type -> collective.proto.HeartbeatRequest
-	14, // 23: collective.proto.Coordinator.StoreFile:input_type -> collective.proto.StoreFileRequest
-	16, // 24: collective.proto.Coordinator.RetrieveFile:input_type -> collective.proto.RetrieveFileRequest
-	18, // 25: collective.proto.Coordinator.UpdateMetadata:input_type -> collective.proto.UpdateMetadataRequest
-	3,  // 26: collective.proto.Coordinator.RegisterNode:input_type -> collective.proto.RegisterNodeRequest
-	0,  // 27: collective.proto.Coordinator.GetStatus:input_type -> collective.proto.GetStatusRequest
-	22, // 28: collective.proto.Coordinator.SyncState:input_type -> collective.proto.SyncStateRequest
-	24, // 29: collective.proto.Coordinator.CreateDirectory:input_type -> collective.proto.CreateDirectoryRequest
-	26, // 30: collective.proto.Coordinator.ListDirectory:input_type -> collective.proto.ListDirectoryRequest
-	28, // 31: collective.proto.Coordinator.DeleteDirectory:input_type -> collective.proto.DeleteDirectoryRequest
-	30, // 32: collective.proto.Coordinator.StatEntry:input_type -> collective.proto.StatEntryRequest
-	32, // 33: collective.proto.Coordinator.MoveEntry:input_type -> collective.proto.MoveEntryRequest
-	35, // 34: collective.proto.Coordinator.CreateFile:input_type -> collective.proto.CreateFileRequest
-	37, // 35: collective.proto.Coordinator.ReadFile:input_type -> collective.proto.ReadFileRequest
-	39, // 36: collective.proto.Coordinator.WriteFile:input_type -> collective.proto.WriteFileRequest
-	41, // 37: collective.proto.Coordinator.DeleteFile:input_type -> collective.proto.DeleteFileRequest
-	43, // 38: collective.proto.Coordinator.WriteFileStream:input_type -> collective.proto.WriteFileStreamRequest
-	46, // 39: collective.proto.Coordinator.ReadFileStream:input_type -> collective.proto.ReadFileStreamRequest
-	6,  // 40: collective.proto.Coordinator.PeerConnect:output_type -> collective.proto.PeerConnectResponse
-	8,  // 41: collective.proto.Coordinator.PeerDisconnect:output_type -> collective.proto.PeerDisconnectResponse
-	10, // 42: collective.proto.Coordinator.ShareNodeList:output_type -> collective.proto.ShareNodeListResponse
-	13, // 43: collective.proto.Coordinator.Heartbeat:output_type -> collective.proto.HeartbeatResponse
-	15, // 44: collective.proto.Coordinator.StoreFile:output_type -> collective.proto.StoreFileResponse
-	17, // 45: collective.proto.Coordinator.RetrieveFile:output_type -> collective.proto.RetrieveFileResponse
-	19, // 46: collective.proto.Coordinator.UpdateMetadata:output_type -> collective.proto.UpdateMetadataResponse
-	4,  // 47: collective.proto.Coordinator.RegisterNode:output_type -> collective.proto.RegisterNodeResponse
-	1,  // 48: collective.proto.Coordinator.GetStatus:output_type -> collective.proto.GetStatusResponse
-	23, // 49: collective.proto.Coordinator.SyncState:output_type -> collective.proto.SyncStateResponse
-	25, // 50: collective.proto.Coordinator.CreateDirectory:output_type -> collective.proto.CreateDirectoryResponse
-	27, // 51: collective.proto.Coordinator.ListDirectory:output_type -> collective.proto.ListDirectoryResponse
-	29, // 52: collective.proto.Coordinator.DeleteDirectory:output_type -> collective.proto.DeleteDirectoryResponse
-	31, // 53: collective.proto.Coordinator.StatEntry:output_type -> collective.proto.StatEntryResponse
-	33, // 54: collective.proto.Coordinator.MoveEntry:output_type -> collective.proto.MoveEntryResponse
-	36, // 55: collective.proto.Coordinator.CreateFile:output_type -> collective.proto.CreateFileResponse
-	38, // 56: collective.proto.Coordinator.ReadFile:output_type -> collective.proto.ReadFileResponse
-	40, // 57: collective.proto.Coordinator.WriteFile:output_type -> collective.proto.WriteFileResponse
-	42, // 58: collective.proto.Coordinator.DeleteFile:output_type -> collective.proto.DeleteFileResponse
-	45, // 59: collective.proto.Coordinator.WriteFileStream:output_type -> collective.proto.WriteFileStreamResponse
-	47, // 60: collective.proto.Coordinator.ReadFileStream:output_type -> collective.proto.ReadFileStreamResponse
-	40, // [40:61] is the sub-list for method output_type
-	19, // [19:40] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	54, // 19: collective.proto.GenerateInviteRequest.grants:type_name -> collective.proto.DataStoreGrant
+	5,  // 20: collective.proto.Coordinator.PeerConnect:input_type -> collective.proto.PeerConnectRequest
+	7,  // 21: collective.proto.Coordinator.PeerDisconnect:input_type -> collective.proto.PeerDisconnectRequest
+	9,  // 22: collective.proto.Coordinator.ShareNodeList:input_type -> collective.proto.ShareNodeListRequest
+	12, // 23: collective.proto.Coordinator.Heartbeat:input_type -> collective.proto.HeartbeatRequest
+	14, // 24: collective.proto.Coordinator.StoreFile:input_type -> collective.proto.StoreFileRequest
+	16, // 25: collective.proto.Coordinator.RetrieveFile:input_type -> collective.proto.RetrieveFileRequest
+	18, // 26: collective.proto.Coordinator.UpdateMetadata:input_type -> collective.proto.UpdateMetadataRequest
+	3,  // 27: collective.proto.Coordinator.RegisterNode:input_type -> collective.proto.RegisterNodeRequest
+	0,  // 28: collective.proto.Coordinator.GetStatus:input_type -> collective.proto.GetStatusRequest
+	22, // 29: collective.proto.Coordinator.SyncState:input_type -> collective.proto.SyncStateRequest
+	24, // 30: collective.proto.Coordinator.CreateDirectory:input_type -> collective.proto.CreateDirectoryRequest
+	26, // 31: collective.proto.Coordinator.ListDirectory:input_type -> collective.proto.ListDirectoryRequest
+	28, // 32: collective.proto.Coordinator.DeleteDirectory:input_type -> collective.proto.DeleteDirectoryRequest
+	30, // 33: collective.proto.Coordinator.StatEntry:input_type -> collective.proto.StatEntryRequest
+	32, // 34: collective.proto.Coordinator.MoveEntry:input_type -> collective.proto.MoveEntryRequest
+	35, // 35: collective.proto.Coordinator.CreateFile:input_type -> collective.proto.CreateFileRequest
+	37, // 36: collective.proto.Coordinator.ReadFile:input_type -> collective.proto.ReadFileRequest
+	39, // 37: collective.proto.Coordinator.WriteFile:input_type -> collective.proto.WriteFileRequest
+	41, // 38: collective.proto.Coordinator.DeleteFile:input_type -> collective.proto.DeleteFileRequest
+	43, // 39: collective.proto.Coordinator.WriteFileStream:input_type -> collective.proto.WriteFileStreamRequest
+	46, // 40: collective.proto.Coordinator.ReadFileStream:input_type -> collective.proto.ReadFileStreamRequest
+	49, // 41: collective.proto.Coordinator.GetFederationCA:input_type -> collective.proto.GetFederationCARequest
+	51, // 42: collective.proto.Coordinator.RequestClientCertificate:input_type -> collective.proto.RequestClientCertificateRequest
+	53, // 43: collective.proto.Coordinator.GenerateInvite:input_type -> collective.proto.GenerateInviteRequest
+	6,  // 44: collective.proto.Coordinator.PeerConnect:output_type -> collective.proto.PeerConnectResponse
+	8,  // 45: collective.proto.Coordinator.PeerDisconnect:output_type -> collective.proto.PeerDisconnectResponse
+	10, // 46: collective.proto.Coordinator.ShareNodeList:output_type -> collective.proto.ShareNodeListResponse
+	13, // 47: collective.proto.Coordinator.Heartbeat:output_type -> collective.proto.HeartbeatResponse
+	15, // 48: collective.proto.Coordinator.StoreFile:output_type -> collective.proto.StoreFileResponse
+	17, // 49: collective.proto.Coordinator.RetrieveFile:output_type -> collective.proto.RetrieveFileResponse
+	19, // 50: collective.proto.Coordinator.UpdateMetadata:output_type -> collective.proto.UpdateMetadataResponse
+	4,  // 51: collective.proto.Coordinator.RegisterNode:output_type -> collective.proto.RegisterNodeResponse
+	1,  // 52: collective.proto.Coordinator.GetStatus:output_type -> collective.proto.GetStatusResponse
+	23, // 53: collective.proto.Coordinator.SyncState:output_type -> collective.proto.SyncStateResponse
+	25, // 54: collective.proto.Coordinator.CreateDirectory:output_type -> collective.proto.CreateDirectoryResponse
+	27, // 55: collective.proto.Coordinator.ListDirectory:output_type -> collective.proto.ListDirectoryResponse
+	29, // 56: collective.proto.Coordinator.DeleteDirectory:output_type -> collective.proto.DeleteDirectoryResponse
+	31, // 57: collective.proto.Coordinator.StatEntry:output_type -> collective.proto.StatEntryResponse
+	33, // 58: collective.proto.Coordinator.MoveEntry:output_type -> collective.proto.MoveEntryResponse
+	36, // 59: collective.proto.Coordinator.CreateFile:output_type -> collective.proto.CreateFileResponse
+	38, // 60: collective.proto.Coordinator.ReadFile:output_type -> collective.proto.ReadFileResponse
+	40, // 61: collective.proto.Coordinator.WriteFile:output_type -> collective.proto.WriteFileResponse
+	42, // 62: collective.proto.Coordinator.DeleteFile:output_type -> collective.proto.DeleteFileResponse
+	45, // 63: collective.proto.Coordinator.WriteFileStream:output_type -> collective.proto.WriteFileStreamResponse
+	47, // 64: collective.proto.Coordinator.ReadFileStream:output_type -> collective.proto.ReadFileStreamResponse
+	50, // 65: collective.proto.Coordinator.GetFederationCA:output_type -> collective.proto.GetFederationCAResponse
+	52, // 66: collective.proto.Coordinator.RequestClientCertificate:output_type -> collective.proto.RequestClientCertificateResponse
+	55, // 67: collective.proto.Coordinator.GenerateInvite:output_type -> collective.proto.GenerateInviteResponse
+	44, // [44:68] is the sub-list for method output_type
+	20, // [20:44] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
-func init() { file_proto_coordinator_proto_init() }
-func file_proto_coordinator_proto_init() {
-	if File_proto_coordinator_proto != nil {
+func init() { file_coordinator_proto_init() }
+func file_coordinator_proto_init() {
+	if File_coordinator_proto != nil {
 		return
 	}
-	file_proto_coordinator_proto_msgTypes[43].OneofWrappers = []any{
+	file_coordinator_proto_msgTypes[43].OneofWrappers = []any{
 		(*WriteFileStreamRequest_Header)(nil),
 		(*WriteFileStreamRequest_ChunkData)(nil),
 	}
-	file_proto_coordinator_proto_msgTypes[47].OneofWrappers = []any{
+	file_coordinator_proto_msgTypes[47].OneofWrappers = []any{
 		(*ReadFileStreamResponse_Header)(nil),
 		(*ReadFileStreamResponse_ChunkData)(nil),
 	}
@@ -3254,17 +3740,17 @@ func file_proto_coordinator_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_coordinator_proto_rawDesc), len(file_proto_coordinator_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_coordinator_proto_rawDesc), len(file_coordinator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   49,
+			NumMessages:   56,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_coordinator_proto_goTypes,
-		DependencyIndexes: file_proto_coordinator_proto_depIdxs,
-		MessageInfos:      file_proto_coordinator_proto_msgTypes,
+		GoTypes:           file_coordinator_proto_goTypes,
+		DependencyIndexes: file_coordinator_proto_depIdxs,
+		MessageInfos:      file_coordinator_proto_msgTypes,
 	}.Build()
-	File_proto_coordinator_proto = out.File
-	file_proto_coordinator_proto_goTypes = nil
-	file_proto_coordinator_proto_depIdxs = nil
+	File_coordinator_proto = out.File
+	file_coordinator_proto_goTypes = nil
+	file_coordinator_proto_depIdxs = nil
 }

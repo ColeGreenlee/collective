@@ -1,364 +1,285 @@
-# CLAUDE.md - Collective Storage System Development Guide
+# CLAUDE.md - Collective Storage Development Guide
 
-## Role & Self-Learning Mandate
-You are a senior software engineer working on a distributed storage collective system. This is a **living document** that you must continuously update with discovered patterns, pitfalls, and improvements.
+## Purpose
+This guide documents critical development principles and patterns for the Collective federated storage system. Focus on actual testing, not workarounds.
 
-**CRITICAL**: Update this CLAUDE.md file whenever you:
-- Discover better workflows or debugging techniques
-- Encounter new issues or solutions
-- Find more efficient development approaches
-- Learn new patterns specific to this codebase
+## Core Development Principles
 
-Focus on rapid iteration with built-in debugging tools over extensive upfront planning.
+### 1. Test Reality, Not Workarounds
+- **NEVER bypass security by using certificates from inside containers**
+- Test as an external client would experience the system
+- If the system requires certificates to get certificates, that's a bug to fix, not work around
+- The federation invite system must work for truly external clients
 
-## Development Philosophy
-1. **TodoWrite for Complex Tasks**: Break down multi-step work into trackable todos
-2. **Code + Test Quickly**: Use established debugging infrastructure to iterate fast
-3. **Debug with Real Data**: Trust coordinator logs, status commands, and Docker testing over theoretical analysis
-4. **Fix Real Problems**: Address issues found through testing, not hypothetical edge cases
-5. **Document Success**: Update this guide after proving features work
+### 2. Rapid Iteration with Real Systems
+- Build and test immediately with actual coordinator/node instances
+- Trust logs and status commands over theoretical analysis
+- Fix real problems, not hypothetical edge cases
 
-## Essential Tools & Workflow
+### 3. Security is Not Optional
+- Never manually copy certificates between systems
+- The invite system handles certificate distribution
+- If external clients can't connect, the system is broken
 
-### Core Debugging Tools (Use First)
-1. **TodoWrite**: Track all multi-step tasks - use proactively for complex work
-2. **Status Command**: `./bin/collective status` - uses client config context automatically
-3. **JSON Debug**: `./bin/collective status --json` - structured debug data
-4. **Config Context**: `./bin/collective config show-context` - view auth status and certificates
-5. **Auth Info**: `./bin/collective auth info --context` - detailed certificate information
-6. **Docker Logs**: `docker-compose logs -f` - real-time container debugging
-7. **Background Bash**: Run processes with `&`, monitor via BashOutput tool
-8. **Protocol Buffers**: Regenerate after `.proto` changes: `protoc --go_out=. --go-grpc_out=. proto/coordinator.proto`
+## Critical Implementation Details
 
-### Standard Development Cycle
-1. **TodoWrite**: Break task into trackable steps
-2. **Build Clean**: `go build -o bin/collective ./cmd/collective/` (keeps repo root clean)
-3. **Test Real**: Use actual coordinator/node instances, never mocks
-4. **Debug with Data**: Status command and logs reveal actual issues
-5. **Fix Real Problems**: Address testing failures, not theoretical issues
-6. **Complete Todos**: Mark TodoWrite items done as you finish
-7. **Update CLAUDE.md**: Document new patterns/solutions immediately
-8. **Verify End-to-End**: Test complete workflows
+### Invite System Architecture
+The invite system uses a dual-server pattern to solve the bootstrap problem:
 
-### Repository Standards
-**Build Location**: Always build to `bin/collective` - never leave binaries in repo root
-**Clean Repo**: `git status` should show minimal untracked files
-**Standard Commands**:
+1. **Main gRPC Server** (port 8001) - Requires mTLS for all operations
+2. **Bootstrap Server** (port 9001) - Insecure, only handles:
+   - `GetFederationCA` - Returns CA certificate for trust
+   - `RequestClientCertificate` - Validates invite and issues client cert
+
+**Key insight**: The bootstrap server signs certificates using the member's CA, not the coordinator cert. This ensures proper certificate chain validation.
+
+### InviteManager Integration
+- Invites stored in memory via `federation.InviteManager`
+- Generated via `GenerateInvite` RPC with DataStore grants
+- Redeemed via bootstrap server which calls `inviteManager.RedeemInvite()`
+- Uses `federation.FederatedAddress` for user@domain addressing
+
+## Essential Development Tools
+
+### Command-Line Debugging Arsenal
+
 ```bash
-go build -o bin/collective ./cmd/collective/
-./bin/collective status --coordinator localhost:8001
-docker compose -f examples/three-member/docker-compose.yml up -d --build
+# Status and Health Monitoring
+./bin/collective status                    # Human-readable cluster status
+./bin/collective status --json | jq '.'    # Structured data for analysis
+./bin/collective config show-context       # Auth and certificate status
+
+# Real-time Monitoring
+docker compose logs -f                     # Stream all container logs
+docker compose logs -f alice-coordinator   # Follow specific service
+curl http://localhost:9090/metrics         # Prometheus metrics
+
+# Interactive Testing
+docker exec -it alice-coordinator sh       # Shell into container
+docker exec alice-coordinator collective status  # Run commands in container
+
+# Certificate Debugging
+./bin/collective auth info /path/to/cert.crt  # Certificate details
+openssl x509 -in cert.crt -text -noout        # Full certificate inspection
 ```
 
-## Authentication & Configuration Patterns
+### Development Workflow Pattern
 
-### Client Configuration System
-The collective now uses a context-based configuration system similar to kubectl:
+1. **Use TodoWrite for Complex Tasks**
+   - Break down work into trackable steps
+   - Mark items complete as you progress
+   - Helps maintain focus and completeness
+
+2. **Build-Test-Debug Cycle**
+   ```bash
+   # Clean build to bin/
+   go build -o bin/collective ./cmd/collective/
+   
+   # Test with real infrastructure
+   docker compose -f examples/homelab-federation/docker-compose.yml up -d
+   
+   # Debug with status and logs
+   ./bin/collective status
+   docker compose logs -f
+   ```
+
+3. **Protocol Buffer Updates**
+   ```bash
+   # After modifying .proto files
+   protoc --go_out=./pkg/protocol --go-grpc_out=./pkg/protocol proto/*.proto
+   
+   # Fix import paths if needed
+   mv pkg/protocol/collective/pkg/protocol/*.go pkg/protocol/
+   rm -rf pkg/protocol/collective
+   ```
+
+## Debugging Strategies
+
+### Connection Issues
 
 ```bash
-# Initialize a new context
-./bin/collective init --name homelab --coordinator localhost:8001 --member alice --ca-cert ca.crt
+# Test connectivity
+./bin/collective config show-context  # Verifies cert chain and connection
 
-# List contexts
-./bin/collective config get-contexts
+# Check TLS configuration
+docker exec alice-coordinator collective auth export-ca  # Get CA cert
+openssl s_client -connect localhost:8001 -CAfile ca.crt  # Test TLS handshake
 
-# Switch contexts
-./bin/collective config use-context homelab
-
-# View detailed context info including cert status
-./bin/collective config show-context
-
-# All commands now use the current context automatically
-./bin/collective status  # No need to specify --coordinator
+# Monitor connection pool
+./bin/collective status --json | jq '.connections'
 ```
 
-### Certificate Management
-- **Auto-generation**: Docker containers auto-generate certificates with `COLLECTIVE_AUTO_TLS=true`
-- **Per-member CAs**: Each member has their own CA - alice's certs won't work with bob's coordinator
-- **Ed25519 keys**: Fast, secure, small key sizes (not post-quantum but excellent for current use)
-- **Certificate paths**: `~/.collective/certificates/<context-name>/`
-- **Expiry monitoring**: `collective auth info --context` shows expiry warnings
+### Storage and Chunk Operations
 
-### Human-Friendly Sizes
-Storage capacity now accepts human-friendly formats:
 ```bash
-# Command line
-./bin/collective node --capacity 500GB
+# Track chunk distribution
+./bin/collective status --json | jq '.nodes[] | {id: .id, chunks: .chunk_count}'
 
-# Config files
-"storage_capacity": "1.5TB"  # Also supports: 100MiB, 2.5GB, etc.
+# Monitor storage usage
+docker exec alice-coordinator df -h /data
+
+# Test chunk operations directly
+echo "test" | ./bin/collective write /test.txt
+./bin/collective read /test.txt
 ```
 
-## Common Pitfalls & Solutions
+### Federation and Gossip Protocol
 
-### Authentication Pitfalls
-- **Missing certificates**: Run `collective init` to set up client config
-- **Wrong context**: Check `collective config current-context`
-- **Expired certs**: Use `collective auth info --context` to check expiry
-- **Cross-member auth**: Alice's certificates won't work with Bob's coordinator (by design)
-- **TLS handshake failures**: Verify CA cert matches the coordinator's CA
-
-### Docker Development Traps
-- **Binary Changes**: Always rebuild containers after Go binary changes: `docker compose -f examples/three-member/docker-compose.yml up -d --build`
-- **Port Conflicts**: Check if previous containers are still running: `docker ps` and `docker compose down`
-- **Log Noise**: Use `docker compose logs -f [service-name]` to filter logs
-- **Network Issues**: Containers use different addresses - use service names, not localhost
-- **Node Registration Loss**: After coordinator restart, nodes don't auto-register - restart nodes or implement heartbeats
-- **Build Context**: Docker compose files in examples/ need `build: ../..` to access Dockerfile
-
-### Protocol Buffer Gotchas  
-- **Generated Files Location**: Files go to nested paths, move them to `pkg/protocol/`
-- **Import Paths**: Regeneration can break if go_package option is wrong
-- **Build Failures**: Always regenerate protobufs before building after .proto changes
-- **Method Signatures**: New RPC methods need implementation in coordinator
-
-### Development Workflow Pitfalls
-- **Forgetting TodoWrite**: Complex tasks without tracking lead to incomplete work
-- **Testing in Isolation**: Always test with real coordinator/node interactions
-- **Ignoring Logs**: The coordinator/node logs contain crucial debugging information
-- **Manual Testing Only**: Use our automated Docker setup for consistent testing
-- **Creating Unnecessary Scripts**: Use the CLI directly - don't create test scripts when CLI commands work
-- **Compression on Random Data**: Compression severely slows down non-compressible data - disable for testing
-- **gRPC 4MB Limit**: Files >4MB require streaming implementation, not direct RPC
-- **Error Formatting**: Check error handling - `%w` with nil errors causes cryptic messages
-
-### Quick Recovery Commands
 ```bash
-# Kill all processes and restart clean
-docker-compose down && docker-compose up -d --build
+# Check peer discovery (when gossip is active)
+docker exec alice-coordinator collective federation peers list
 
-# Rebuild binary to standard location and restart local testing
-go build -o bin/collective cmd/collective/main.go
-pkill -f collective || true
-./bin/collective coordinator --member-id alice --address :8001 &
-
-# Check what's actually running
-docker ps
-ps aux | grep collective
-./bin/collective status --coordinator localhost:8001
-
-# Get structured debug information
-./bin/collective status --coordinator localhost:8001 --json
-
-# Protocol buffer emergency regeneration
-rm pkg/protocol/coordinator*.go
-protoc --go_out=./pkg/protocol --go-grpc_out=./pkg/protocol proto/coordinator.proto
-mv pkg/protocol/collective/pkg/protocol/coordinator*.go pkg/protocol/
-rm -rf pkg/protocol/collective
-```
-
-## Implementation Standards
-
-### Code Quality Requirements
-- **Error Handling**: Return meaningful errors with debugging context
-- **Structured Logging**: Use zap.Logger with component, operation, and ID context
-- **Consistent Patterns**: Follow existing coordinator/node code patterns
-- **Protocol First**: Design gRPC operations before implementing business logic
-- **Incremental Success**: Get one piece fully working before moving to next
-
-### Development Approach
-- **Fail Fast**: Build and test immediately rather than perfect upfront design
-- **Real Data Testing**: Use actual gRPC calls and coordinator state, never mocks
-- **Observable Debugging**: Use status commands and logs instead of print statements
-- **Document Discoveries**: Add new patterns, pitfalls, and solutions to this CLAUDE.md immediately
-
-## Federation Architecture Development (Active)
-
-### Current Focus
-Implementing federated storage system for media server collectives (3-5 homelabs with 20TB+ each). See [FEDERATION_PLAN.md](FEDERATION_PLAN.md) for complete architecture and implementation plan.
-
-### Federation Development Workflow
-1. **Review FEDERATION_PLAN.md**: Understand the 10 implementation tasks
-2. **Use TodoWrite**: Track progress on federation tasks
-3. **Test with Multi-Member Setup**: Always test federation features with 3+ members
-4. **Update Both Docs**: Keep FEDERATION_PLAN.md and CLAUDE.md in sync
-
-### Federation-Specific Commands
-```bash
-# Test multi-member federation locally
-docker compose -f examples/three-member/docker-compose.yml up -d --build
-
-# Verify federation peering
-./bin/collective status --json | jq '.peers'
+# Monitor gossip convergence
+docker compose logs -f | grep -i gossip
 
 # Test cross-member operations
-./bin/collective --context alice store /test.txt
-./bin/collective --context bob retrieve /test.txt
-
-# Monitor gossip protocol (when implemented)
-./bin/collective debug gossip --watch
+docker exec alice-coordinator collective write /shared/test.txt
+docker exec bob-coordinator collective read /shared/test.txt
 ```
 
-### Federation Testing Patterns
-- **Multi-CA Trust**: Test certificate validation across member CAs
-- **Network Resilience**: Simulate network partitions and failovers
-- **DataStore Permissions**: Verify access control across members
-- **Chunk Placement**: Monitor smart placement strategies
-- **Gossip Convergence**: Measure peer discovery time
+## Architecture Patterns
 
-### Federation Implementation Priority
-Tasks are designed for parallel sub-agent development. Start with:
-1. **Foundation (Tasks 1-3)**: Address system, CA hierarchy, trust store
-2. **Production Features (Tasks 4-6)**: Gossip, permissions, smart placement
-3. **Polish (Tasks 7-10)**: Invites, resilience, monitoring, FUSE optimization
+### Federation Design
+- **Addressing**: Mastodon-style `node@domain.collective.local`
+- **Trust Model**: Hierarchical CA with per-member certificate authorities
+- **Discovery**: Gossip protocol with epidemic dissemination
+- **Permissions**: DataStore-level with wildcard support
 
-Each task is independently valuable - see FEDERATION_PLAN.md for detailed specs.
+### Connection Management
+- **Pooling**: Reuse gRPC connections with health checks
+- **Resilience**: Circuit breakers and exponential backoff
+- **Security**: mTLS everywhere with graceful fallback
 
-## Major Cleanup Completed (Aug 2025)
+### Storage Strategy
+- **Chunking**: Variable sizes (64KB/1MB/4MB) based on file size
+- **Placement**: Media (low-latency), Backup (durability), Hybrid strategies
+- **Replication**: Configurable factor with cross-node distribution
 
-### Phase 1: Security & Functionality
-- **Streaming Consolidation**: Removed `coordinator_streaming.go` and `coordinator_wrapper.go`, kept only optimized version (-600 lines)
-- **Secure Connections**: Created `pkg/client/connection.go` with secure connection factory, replaced 25 insecure gRPC calls
-- **File Deletion**: Fixed CLI to properly call existing DeleteFile RPC
+## Testing Patterns
 
-### Phase 2: Organization & Testing  
-- **Coordinator Reorganization**: 
-  - Created `operations.go` consolidating all directory/file operations
-  - Removed `coordinator_directory.go` (-430 lines)
-  - Clear separation: core logic, operations, storage, streaming, files
-- **Test Coverage**: Added comprehensive unit tests for `pkg/auth` and `pkg/node`
-- **TODO Resolution**: Implemented cluster health calculation, removed placeholders
+### Critical Testing Rule
+**TEST FROM OUTSIDE**: Always test as an external client without access to container internals. If you need certificates from inside a container to make something work, the system is broken.
 
-### Impact Metrics
-- **Lines removed**: ~1000 (duplicate code)
-- **Security**: All connections support mTLS with graceful fallback
-- **Test coverage**: 2 critical packages now tested (auth: 100%, node: partial)
-- **Files reduced**: 7 → 6 in coordinator package
+### Bootstrap Problem (SOLVED)
+The invite system bootstrap problem has been solved:
+- **Solution**: Dual-server architecture with bootstrap server on insecure port (9001)
+- **Implementation**: `BootstrapCoordinator` handles only GetFederationCA and RequestClientCertificate
+- **Security**: Bootstrap server ONLY provides certificates, no data operations
+- **Key Files**: 
+  - `pkg/coordinator/bootstrap_coordinator.go` - Bootstrap server implementation
+  - `pkg/coordinator/coordinator.go` - Starts bootstrap server on port 9001
+  - `cmd/collective/invite.go` - Auto-detects bootstrap ports (8001→9001)
 
-## Project Structure (Updated)
-```
-collective/
-├── cmd/collective/       # CLI with status command and operations
-│   ├── main.go         # Entry point with secure connections
-│   ├── auth.go         # Authentication commands
-│   ├── config_cmd.go   # Config management
-│   ├── init.go         # Client initialization
-│   └── status_enhanced.go # Status with health calculation
-├── pkg/
-│   ├── auth/           # Authentication (with auth_test.go)
-│   ├── client/         # NEW: Connection management & pooling
-│   ├── coordinator/    # Reorganized coordinator
-│   │   ├── coordinator.go     # Core coordinator logic
-│   │   ├── operations.go      # NEW: All directory/file operations
-│   │   ├── coordinator_file.go # File-specific operations
-│   │   ├── coordinator_storage.go # Chunk management
-│   │   ├── coordinator_streaming.go # Unified streaming
-│   │   └── coordinator_test.go # Tests
-│   ├── node/           # Storage nodes (with node_test.go)
-│   ├── protocol/       # gRPC definitions
-│   ├── fuse/           # FUSE filesystem
-│   ├── storage/        # Chunk storage
-│   ├── types/          # Shared types
-│   ├── config/         # Configuration
-│   └── utils/          # Utilities
-├── proto/              # Protocol buffer definitions
-├── docs/               # Documentation
-├── examples/           # Example deployments
-├── test/               # Test files
-├── PLAN.md            # NEW: Cleanup & refactoring plan
-└── docker-entrypoint.sh # Auto-TLS setup
-```
 
-## Performance Metrics
+## Common Pitfalls and Solutions
 
-### Phase 4 Baseline (3MB file test)
-- **Write Speed**: 8.5 MB/s (352ms for 3MB)
-- **Read Speed**: 40.5 MB/s (74ms for 3MB)
-- **Chunk Size**: 1MB default
-- **Replication Factor**: 2
+### Authentication Issues
+- **Problem**: "x509: certificate signed by unknown authority"
+- **Solution**: Ensure CA cert matches coordinator's CA, check with `show-context`
 
-### Phase 5 Performance (1GB file test)
-- **Write Speed**: 78 MB/s (13.7s for 1GB zero-filled data)
-- **Read Speed**: 320 MB/s (3.3s for 1GB) 
-- **Throughput Improvement**: **9.2x faster** write than baseline
-- **Chunks**: Optimized with variable sizing (256 x 4MB chunks for 1GB)
-- **Features Implemented**:
-  - Streaming gRPC for files >4MB
-  - Parallel chunk storage/retrieval
-  - Connection pooling to nodes
-  - Real-time progress monitoring
-  - Compression for compressible data (1GB → 1.1MB for zeros)
-  - Variable chunk sizes (64KB/1MB/4MB based on file size)
-  - Write coalescing buffers for small writes
+### Network Problems
+- **Problem**: "connection refused" errors
+- **Solution**: Verify port mapping, check `docker compose ps` for container status
 
-### Bottlenecks Resolved
-1. ✅ **gRPC 4MB Message Limit**: Fixed with streaming
-2. ✅ **Sequential Chunk Operations**: Fixed with parallel goroutines
-3. ✅ **No Connection Pooling**: Fixed with connection cache
+### Storage Failures
+- **Problem**: Chunks failing to store
+- **Solution**: Check node capacity with `status --json`, verify nodes are registered
 
-### Known Performance Issues
-- **Compression Bottleneck**: gzip compression on non-compressible data causes severe slowdowns (>2min for 100MB)
-  - **Workaround**: Disable compression for binary/random data
-  - **Future Fix**: Implement compression sampling or content-type detection
-- **Chunk Decompression**: Streaming reads don't handle compressed chunks properly
-  - **Issue**: Metadata doesn't track per-chunk compression state
-  - **Future Fix**: Add compression flags to chunk metadata
+### Performance Issues
+- **Problem**: Slow file transfers
+- **Solution**: Check chunk size optimization, disable compression for binary data
 
-### Critical Known Issues
-⚠️ **MUST FIX BEFORE PRODUCTION**:
-1. ✅ **Concurrent Upload Corruption**: FIXED - Now 100% success rate
-   - Previous: 80% failure rate with parallel uploads
-   - Fix applied: Per-file locking + reduced mutex scope + merge allocations
-   - Testing: Verified with 10+ concurrent 5MB uploads
-   
-2. **Node Self-Healing**: Nodes don't auto-register after coordinator restart
-   - Impact: Manual intervention required after crashes
-   - Fix needed: Implement heartbeat/re-registration mechanism
 
-## Proven Patterns & Testing
+## Code Organization Guidelines
 
-### Performance Testing
-**IMPORTANT**: Always use the standardized performance testing plan documented in README.md Section "Performance Benchmarks" when running scale tests. This ensures consistent and comparable results.
+### Package Structure
+- `pkg/federation/` - All federation logic (gossip, permissions, placement)
+- `pkg/coordinator/` - Core coordinator with clean separation
+- `pkg/auth/` - Certificate and authentication management
+- `cmd/collective/` - CLI commands, keep minimal logic here
 
+### Testing Philosophy
+- Integration tests over unit tests for distributed systems
+- Use Docker Compose for realistic multi-node testing
+- Test actual gRPC calls, not mocked interfaces
+
+### Error Handling
+- Return errors with context: `fmt.Errorf("failed to store chunk %s: %w", chunkID, err)`
+- Log at appropriate levels with structured fields
+- Surface user-friendly messages in CLI
+
+## Performance Optimization Techniques
+
+### Memory Management
+- Stream large files instead of loading into memory
+- Use buffered channels for parallel operations
+- Clear maps and slices when done
+
+### Concurrency Patterns
+- Per-file locking to prevent corruption
+- Parallel chunk transfers with worker pools
+- Context cancellation for clean shutdown
+
+### Network Optimization
+- Connection pooling to reduce handshake overhead
+- Batch operations when possible
+- Use streaming RPCs for large transfers
+
+## Repository Maintenance
+
+### Clean Development
 ```bash
-# For complete performance testing procedures, see:
-# README.md > Performance Benchmarks > Standardized Performance Testing Plan
+# Keep repository clean
+git status  # Should show minimal untracked files
+go mod tidy  # Clean up dependencies
+go fmt ./...  # Format all code
 
-# Quick validation after changes:
-./bin/collective mkdir /perftest --coordinator localhost:8001
-dd if=/dev/urandom of=/tmp/test_10mb.bin bs=1M count=10 2>/dev/null
-time ./bin/collective client store --file /tmp/test_10mb.bin --id /perftest/10mb.bin --coordinator localhost:8001
-./bin/collective client retrieve --id /perftest/10mb.bin --output /tmp/retrieved_10mb.bin --coordinator localhost:8001
-cmp /tmp/test_10mb.bin /tmp/retrieved_10mb.bin && echo "✓ PASS" || echo "✗ FAIL"
-rm -f /tmp/test_10mb.bin /tmp/retrieved_10mb.bin
+# Build artifacts go in bin/
+go build -o bin/collective ./cmd/collective/
 ```
 
-### Expected Performance Baselines
-- **Small files (1-10MB)**: 10-50 MB/s upload, 47-150 MB/s download
-- **Medium files (50-100MB)**: 50-60 MB/s upload, 210-227 MB/s download  
-- **Large files (200-500MB)**: 56-63 MB/s upload, 242-250 MB/s download
-- **Data integrity**: Must be 100% for sequential operations
+### Documentation Updates
+- Update this guide when discovering new patterns
+- Keep examples/homelab-federation/README.md current
+- Document new CLI commands immediately
 
-### Established Testing Infrastructure
+### Version Control
+- Commit logical units of work
+- Write clear commit messages explaining "why" not "what"
+- Never commit secrets or large binary files
+
+## Quick Reference
+
+### Development Cycle
 ```bash
-# Quick single-coordinator test
-./bin/collective coordinator --member-id alice --address :8001 &
-./bin/collective mkdir /test --coordinator localhost:8001
+# Build and test complete flow
+go build -o bin/collective ./cmd/collective/
+docker compose up -d --build
+./bin/collective identity init --global-id test@homelab.collective.local
 
-# Docker multi-coordinator test  
-docker compose -f examples/three-member/docker-compose.yml up -d --build
-./bin/collective status --coordinator alice:8001
+# Generate invite (get certs from container for testing)
+docker exec alice-coordinator cat /collective/certs/ca/alice-ca.crt > /tmp/alice-ca.crt
+docker exec alice-coordinator cat /collective/certs/coordinators/alice-coordinator.crt > /tmp/alice-coordinator.crt
+docker exec alice-coordinator cat /collective/certs/coordinators/alice-coordinator.key > /tmp/alice-coordinator.key
+./bin/collective invite generate --grant "/shared:read+write" --ca /tmp/alice-ca.crt --cert /tmp/alice-coordinator.crt --key /tmp/alice-coordinator.key
 
-# Scale testing
-cd examples/scale-testing && python generate-compose.py 50 10
-docker compose -f docker-compose-generated.yml up -d
+# Redeem and test
+./bin/collective invite redeem INVITE_CODE
+./bin/collective status  # Now works externally!
 ```
 
-### Working Development Patterns
-- **Protocol Extensions**: Add gRPC methods → regenerate protobufs → implement in coordinator
-- **Directory Operations**: Path-based operations with parent-child relationship management
-- **FUSE Integration**: CollectiveFS handles directories, CollectiveFile handles files
-- **Error Propagation**: Coordinator errors → gRPC status → FUSE errno codes  
-- **Caching Strategy**: TTL-based metadata cache (5s dirs, 1s attrs)
-- **Background Testing**: Run coordinators with `&`, monitor via BashOutput
-- **Docker Integration**: `docker-compose up -d --build` for reliable multi-node testing
-- **Authentication Flow**: 
-  1. Initialize context: `collective init --name lab --coordinator host:8001`
-  2. Auto-generate certs: Docker with `COLLECTIVE_AUTO_TLS=true`
-  3. Verify auth: `collective config show-context` or `collective auth info --context`
-- **Client Config Usage**: Commands automatically use current context, no need for --coordinator flags
-- **Certificate Debugging**: 
-  - Check expiry: `collective auth info /path/to/cert.crt`
-  - Verify chain: Built into `collective config show-context`
-  - Test connection: Automatic in show-context command
-- **Size Configuration**: Use "500GB" instead of calculating bytes (works in JSON and CLI)
+### Current Known Issues
+1. **Coordinator Peering Failed**: TLS authentication issues between coordinators (alice↔bob↔carol)
+2. **Permission Enforcement Missing**: DataStore permissions defined but not enforced
+3. **Cross-Member Federation**: Cannot access data from other coordinators yet
+
+## Contributing Improvements
+
+When you discover new patterns, debugging techniques, or solutions:
+
+1. Test the solution thoroughly
+2. Document it in the appropriate section of this guide
+3. Include example commands and expected output
+4. Explain why the solution works, not just how
+
+This guide should grow with the codebase, becoming more valuable over time as collective knowledge accumulates.
