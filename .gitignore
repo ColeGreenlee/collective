@@ -72,7 +72,6 @@ status-example.json
 
 # Large test data files
 *.bin
-!bin/
 
 # Build artifacts
 /collective

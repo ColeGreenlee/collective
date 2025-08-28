@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM ghcr.io/rblaine95/golang:1.23-alpine AS builder
 
 RUN apk add --no-cache git make protoc protobuf protobuf-dev
 
@@ -18,7 +18,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative \
     go build -o collective ./cmd/collective/
 
 # Runtime stage
-FROM alpine:latest
+FROM ghcr.io/rblaine95/alpine:latest
 
 # Install ca-certificates and bash for entrypoint script
 RUN apk add --no-cache ca-certificates bash
