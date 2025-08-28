@@ -57,7 +57,7 @@ This creates a new Ed25519 key pair and sets up your identity configuration.`,
 			}
 
 			if clientConfig.UserIdentity != nil && clientConfig.UserIdentity.GlobalID != "" && !force {
-				return fmt.Errorf("federated identity already exists: %s. Use --force to overwrite", 
+				return fmt.Errorf("federated identity already exists: %s. Use --force to overwrite",
 					clientConfig.UserIdentity.GlobalID)
 			}
 
@@ -116,17 +116,17 @@ This creates a new Ed25519 key pair and sets up your identity configuration.`,
 // identityAddCmd adds a collective to the federated configuration
 func identityAddCmd() *cobra.Command {
 	var (
-		collectiveID   string
-		coordinator    string
-		memberID       string
-		role           string
-		caCert         string
-		clientCert     string
-		clientKey      string
-		trustLevel     string
-		description    string
-		autoDiscover   bool
-		setDefault     bool
+		collectiveID string
+		coordinator  string
+		memberID     string
+		role         string
+		caCert       string
+		clientCert   string
+		clientKey    string
+		trustLevel   string
+		description  string
+		autoDiscover bool
+		setDefault   bool
 	)
 
 	cmd := &cobra.Command{
@@ -267,8 +267,8 @@ func identityListCmd() *cobra.Command {
 			}
 
 			// Display user identity
-			fmt.Printf("🌐 Identity: %s (%s)\n", 
-				clientConfig.UserIdentity.GlobalID, 
+			fmt.Printf("🌐 Identity: %s (%s)\n",
+				clientConfig.UserIdentity.GlobalID,
 				clientConfig.UserIdentity.DisplayName)
 			fmt.Printf("   Public Key: %s\n", clientConfig.UserIdentity.PublicKey)
 			fmt.Println()

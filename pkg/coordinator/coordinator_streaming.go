@@ -437,6 +437,6 @@ func (c *Coordinator) getNodeConnection(address string) (*grpc.ClientConn, error
 	nodeConnPoolOnce.Do(func() {
 		nodeConnectionPool = shared.NewSharedConnectionPool(c.authConfig)
 	})
-	
+
 	return nodeConnectionPool.GetConnection(address)
 }

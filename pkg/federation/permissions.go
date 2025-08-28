@@ -11,13 +11,13 @@ import (
 // PermissionManager handles DataStore access control
 type PermissionManager struct {
 	mu sync.RWMutex
-	
+
 	// DataStores with their permissions
 	dataStores map[string]*DataStore // path -> datastore
-	
+
 	// Permission cache for performance
-	cache      map[string]*permissionCacheEntry
-	cacheTTL   time.Duration
+	cache    map[string]*permissionCacheEntry
+	cacheTTL time.Duration
 }
 
 // permissionCacheEntry holds cached permission check results
@@ -40,15 +40,15 @@ func NewPermissionManager() *PermissionManager {
 func (pm *PermissionManager) CreateDataStore(path string, owner *FederatedAddress, strategy PlacementStrategy) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	// Normalize path
 	path = filepath.Clean(path)
-	
+
 	// Check if DataStore already exists
 	if _, exists := pm.dataStores[path]; exists {
 		return fmt.Errorf("datastore %s already exists", path)
 	}
-	
+
 	// Create DataStore with owner having all rights
 	ds := &DataStore{
 		Path:     path,
@@ -63,10 +63,10 @@ func (pm *PermissionManager) CreateDataStore(path string, owner *FederatedAddres
 		},
 		Metadata: make(map[string]string),
 	}
-	
+
 	pm.dataStores[path] = ds
 	pm.clearCache() // Clear cache when permissions change
-	
+
 	return nil
 }
 
@@ -74,14 +74,14 @@ func (pm *PermissionManager) CreateDataStore(path string, owner *FederatedAddres
 func (pm *PermissionManager) GrantPermission(path string, subject *FederatedAddress, rights []Right, validUntil *time.Time) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	path = filepath.Clean(path)
-	
+
 	ds, exists := pm.dataStores[path]
 	if !exists {
 		return fmt.Errorf("datastore %s not found", path)
 	}
-	
+
 	// Check if permission already exists for this subject
 	for i, perm := range ds.Permissions {
 		if perm.Subject.Equal(subject) {
@@ -92,14 +92,14 @@ func (pm *PermissionManager) GrantPermission(path string, subject *FederatedAddr
 			return nil
 		}
 	}
-	
+
 	// Add new permission
 	ds.Permissions = append(ds.Permissions, Permission{
 		Subject:    subject,
 		Rights:     rights,
 		ValidUntil: validUntil,
 	})
-	
+
 	pm.clearCache()
 	return nil
 }
@@ -108,14 +108,14 @@ func (pm *PermissionManager) GrantPermission(path string, subject *FederatedAddr
 func (pm *PermissionManager) RevokePermission(path string, subject *FederatedAddress) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	path = filepath.Clean(path)
-	
+
 	ds, exists := pm.dataStores[path]
 	if !exists {
 		return fmt.Errorf("datastore %s not found", path)
 	}
-	
+
 	// Remove permission for subject
 	newPerms := []Permission{}
 	for _, perm := range ds.Permissions {
@@ -123,10 +123,10 @@ func (pm *PermissionManager) RevokePermission(path string, subject *FederatedAdd
 			newPerms = append(newPerms, perm)
 		}
 	}
-	
+
 	ds.Permissions = newPerms
 	pm.clearCache()
-	
+
 	return nil
 }
 
@@ -134,7 +134,7 @@ func (pm *PermissionManager) RevokePermission(path string, subject *FederatedAdd
 func (pm *PermissionManager) CheckPermission(path string, subject *FederatedAddress, right Right) (bool, error) {
 	// Check cache first
 	cacheKey := fmt.Sprintf("%s:%s:%s", path, subject.String(), right)
-	
+
 	pm.mu.RLock()
 	if entry, exists := pm.cache[cacheKey]; exists {
 		if time.Now().Before(entry.expiresAt) {
@@ -143,13 +143,13 @@ func (pm *PermissionManager) CheckPermission(path string, subject *FederatedAddr
 		}
 	}
 	pm.mu.RUnlock()
-	
+
 	// Perform actual permission check
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	path = filepath.Clean(path)
-	
+
 	// Find the DataStore (check exact match and parent paths)
 	ds := pm.findDataStore(path)
 	if ds == nil {
@@ -157,13 +157,13 @@ func (pm *PermissionManager) CheckPermission(path string, subject *FederatedAddr
 		pm.updateCache(cacheKey, false, nil)
 		return false, nil
 	}
-	
+
 	// Check permissions
 	allowed, rights := pm.checkDataStorePermission(ds, subject, right)
-	
+
 	// Update cache
 	pm.updateCache(cacheKey, allowed, rights)
-	
+
 	return allowed, nil
 }
 
@@ -173,7 +173,7 @@ func (pm *PermissionManager) findDataStore(path string) *DataStore {
 	if ds, exists := pm.dataStores[path]; exists {
 		return ds
 	}
-	
+
 	// Check parent paths for inheritance
 	parent := path
 	for parent != "/" && parent != "." {
@@ -182,25 +182,25 @@ func (pm *PermissionManager) findDataStore(path string) *DataStore {
 			return ds // Inherit from parent DataStore
 		}
 	}
-	
+
 	// Check root
 	if ds, exists := pm.dataStores["/"]; exists {
 		return ds
 	}
-	
+
 	return nil
 }
 
 // checkDataStorePermission checks if subject has right in DataStore
 func (pm *PermissionManager) checkDataStorePermission(ds *DataStore, subject *FederatedAddress, right Right) (bool, []Right) {
 	now := time.Now()
-	
+
 	for _, perm := range ds.Permissions {
 		// Check if permission has expired
 		if perm.ValidUntil != nil && now.After(*perm.ValidUntil) {
 			continue
 		}
-		
+
 		// Check if subject matches (including wildcards)
 		if pm.subjectMatches(perm.Subject, subject) {
 			// Check if right is granted
@@ -211,7 +211,7 @@ func (pm *PermissionManager) checkDataStorePermission(ds *DataStore, subject *Fe
 			}
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -221,14 +221,14 @@ func (pm *PermissionManager) subjectMatches(permSubject, subject *FederatedAddre
 	if permSubject.Equal(subject) {
 		return true
 	}
-	
+
 	// Wildcard matching: *@*.collective matches any@any.collective
 	if permSubject.LocalPart == "*" {
 		// Match any local part in the same domain
 		if permSubject.Domain == subject.Domain {
 			return true
 		}
-		
+
 		// Match any domain with pattern
 		if strings.HasPrefix(permSubject.Domain, "*.") {
 			domainSuffix := permSubject.Domain[1:] // Remove *
@@ -237,7 +237,7 @@ func (pm *PermissionManager) subjectMatches(permSubject, subject *FederatedAddre
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -245,14 +245,14 @@ func (pm *PermissionManager) subjectMatches(permSubject, subject *FederatedAddre
 func (pm *PermissionManager) GetDataStore(path string) (*DataStore, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	path = filepath.Clean(path)
-	
+
 	ds, exists := pm.dataStores[path]
 	if !exists {
 		return nil, fmt.Errorf("datastore %s not found", path)
 	}
-	
+
 	return ds, nil
 }
 
@@ -260,12 +260,12 @@ func (pm *PermissionManager) GetDataStore(path string) (*DataStore, error) {
 func (pm *PermissionManager) ListDataStores() []*DataStore {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	stores := make([]*DataStore, 0, len(pm.dataStores))
 	for _, ds := range pm.dataStores {
 		stores = append(stores, ds)
 	}
-	
+
 	return stores
 }
 
@@ -273,14 +273,14 @@ func (pm *PermissionManager) ListDataStores() []*DataStore {
 func (pm *PermissionManager) GetPermissions(path string) ([]Permission, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	path = filepath.Clean(path)
-	
+
 	ds, exists := pm.dataStores[path]
 	if !exists {
 		return nil, fmt.Errorf("datastore %s not found", path)
 	}
-	
+
 	return ds.Permissions, nil
 }
 
@@ -288,14 +288,14 @@ func (pm *PermissionManager) GetPermissions(path string) ([]Permission, error) {
 func (pm *PermissionManager) IsOwner(path string, subject *FederatedAddress) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	path = filepath.Clean(path)
-	
+
 	ds, exists := pm.dataStores[path]
 	if !exists {
 		return false
 	}
-	
+
 	return ds.Owner.Equal(subject)
 }
 
@@ -303,22 +303,22 @@ func (pm *PermissionManager) IsOwner(path string, subject *FederatedAddress) boo
 func (pm *PermissionManager) TransferOwnership(path string, currentOwner, newOwner *FederatedAddress) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	path = filepath.Clean(path)
-	
+
 	ds, exists := pm.dataStores[path]
 	if !exists {
 		return fmt.Errorf("datastore %s not found", path)
 	}
-	
+
 	// Verify current owner
 	if !ds.Owner.Equal(currentOwner) {
 		return fmt.Errorf("not the owner of datastore %s", path)
 	}
-	
+
 	// Transfer ownership
 	ds.Owner = newOwner
-	
+
 	// Grant all rights to new owner if not already present
 	hasNewOwnerPerm := false
 	for i, perm := range ds.Permissions {
@@ -328,14 +328,14 @@ func (pm *PermissionManager) TransferOwnership(path string, currentOwner, newOwn
 			break
 		}
 	}
-	
+
 	if !hasNewOwnerPerm {
 		ds.Permissions = append(ds.Permissions, Permission{
 			Subject: newOwner,
 			Rights:  []Right{RightRead, RightWrite, RightDelete, RightShare},
 		})
 	}
-	
+
 	pm.clearCache()
 	return nil
 }
@@ -366,7 +366,7 @@ func (pm *PermissionManager) SetCacheTTL(ttl time.Duration) {
 func (pm *PermissionManager) ImportDataStores(stores []*DataStore) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	for _, ds := range stores {
 		if ds == nil {
 			continue
@@ -374,7 +374,7 @@ func (pm *PermissionManager) ImportDataStores(stores []*DataStore) error {
 		path := filepath.Clean(ds.Path)
 		pm.dataStores[path] = ds
 	}
-	
+
 	pm.clearCache()
 	return nil
 }
@@ -383,13 +383,13 @@ func (pm *PermissionManager) ImportDataStores(stores []*DataStore) error {
 func (pm *PermissionManager) ExportDataStores() []*DataStore {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	stores := make([]*DataStore, 0, len(pm.dataStores))
 	for _, ds := range pm.dataStores {
 		// Create a copy to avoid external modification
 		dsCopy := *ds
 		stores = append(stores, &dsCopy)
 	}
-	
+
 	return stores
 }

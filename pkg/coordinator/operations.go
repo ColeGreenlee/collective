@@ -108,12 +108,12 @@ func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirec
 	for _, childPath := range dir.Children {
 		if childDir, exists := c.directories[childPath]; exists {
 			entries = append(entries, &protocol.DirectoryEntry{
-				Name:        filepath.Base(childDir.Path),
-				Path:        childDir.Path,
-				IsDirectory: true,
-				Mode:        uint32(childDir.Mode),
+				Name:         filepath.Base(childDir.Path),
+				Path:         childDir.Path,
+				IsDirectory:  true,
+				Mode:         uint32(childDir.Mode),
 				ModifiedTime: childDir.Modified.Unix(),
-				Owner:       string(childDir.Owner),
+				Owner:        string(childDir.Owner),
 			})
 		}
 	}
@@ -122,13 +122,13 @@ func (c *Coordinator) ListDirectory(ctx context.Context, req *protocol.ListDirec
 	for filePath, fileEntry := range c.fileEntries {
 		if getParentPath(filePath) == path {
 			entries = append(entries, &protocol.DirectoryEntry{
-				Name:        filepath.Base(filePath),
-				Path:        filePath,
-				IsDirectory: false,
-				Size:        fileEntry.Size,
-				Mode:        uint32(fileEntry.Mode),
+				Name:         filepath.Base(filePath),
+				Path:         filePath,
+				IsDirectory:  false,
+				Size:         fileEntry.Size,
+				Mode:         uint32(fileEntry.Mode),
 				ModifiedTime: fileEntry.Modified.Unix(),
-				Owner:       string(fileEntry.Owner),
+				Owner:        string(fileEntry.Owner),
 			})
 		}
 	}
@@ -246,11 +246,11 @@ func (c *Coordinator) StatEntry(ctx context.Context, req *protocol.StatEntryRequ
 		return &protocol.StatEntryResponse{
 			Success: true,
 			Entry: &protocol.DirectoryEntry{
-				Path:        dir.Path,
-				IsDirectory: true,
-				Mode:        uint32(dir.Mode),
+				Path:         dir.Path,
+				IsDirectory:  true,
+				Mode:         uint32(dir.Mode),
 				ModifiedTime: dir.Modified.Unix(),
-				Owner:       string(dir.Owner),
+				Owner:        string(dir.Owner),
 			},
 		}, nil
 	}
@@ -260,12 +260,12 @@ func (c *Coordinator) StatEntry(ctx context.Context, req *protocol.StatEntryRequ
 		return &protocol.StatEntryResponse{
 			Success: true,
 			Entry: &protocol.DirectoryEntry{
-				Path:        path,
-				IsDirectory: false,
-				Size:        fileEntry.Size,
-				Mode:        uint32(fileEntry.Mode),
+				Path:         path,
+				IsDirectory:  false,
+				Size:         fileEntry.Size,
+				Mode:         uint32(fileEntry.Mode),
 				ModifiedTime: fileEntry.Modified.Unix(),
-				Owner:       string(fileEntry.Owner),
+				Owner:        string(fileEntry.Owner),
 			},
 		}, nil
 	}
@@ -555,4 +555,3 @@ func (c *Coordinator) getFileLock(path string) *sync.RWMutex {
 	c.fileLocks[path] = lock
 	return lock
 }
-

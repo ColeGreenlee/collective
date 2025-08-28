@@ -58,29 +58,29 @@ func generateInviteCmd() *cobra.Command {
 			maxUses, _ := cmd.Flags().GetInt("max-uses")
 			validityStr, _ := cmd.Flags().GetString("validity")
 			description, _ := cmd.Flags().GetString("description")
-			
+
 			// Parse validity duration
 			validity, err := time.ParseDuration(validityStr)
 			if err != nil {
 				return fmt.Errorf("invalid validity duration: %w", err)
 			}
-			
+
 			// Parse grants
 			dataStoreGrants, err := parseGrants(grants)
 			if err != nil {
 				return fmt.Errorf("invalid grants: %w", err)
 			}
-			
+
 			// Create client connection using global function
 			conn, err := getSecureConnection("localhost:8001")
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator: %w", err)
 			}
 			defer conn.Close()
-			
+
 			// Create gRPC client
 			client := protocol.NewCoordinatorClient(conn)
-			
+
 			// Create request
 			req := &protocol.GenerateInviteRequest{
 				Grants:          make([]*protocol.DataStoreGrant, 0),
@@ -88,7 +88,7 @@ func generateInviteCmd() *cobra.Command {
 				ValiditySeconds: int64(validity.Seconds()),
 				Description:     description,
 			}
-			
+
 			// Convert grants to proto format
 			for path, rights := range dataStoreGrants {
 				req.Grants = append(req.Grants, &protocol.DataStoreGrant{
@@ -96,19 +96,19 @@ func generateInviteCmd() *cobra.Command {
 					Rights: rights,
 				})
 			}
-			
+
 			// Call GenerateInvite RPC
 			resp, err := client.GenerateInvite(context.Background(), req)
 			if err != nil {
 				return fmt.Errorf("failed to generate invite: %w", err)
 			}
-			
+
 			if !resp.Success {
 				return fmt.Errorf("failed to generate invite: %s", resp.Message)
 			}
-			
+
 			inviteCode := resp.Code
-			
+
 			// Display invite details
 			fmt.Println("Generated Federation Invite")
 			fmt.Println("==========================")
@@ -119,26 +119,26 @@ func generateInviteCmd() *cobra.Command {
 				fmt.Printf("Description: %s\n", description)
 			}
 			fmt.Println()
-			
+
 			fmt.Println("Permissions granted:")
 			for path, rights := range dataStoreGrants {
 				fmt.Printf("  - %s: %v\n", path, rights)
 			}
 			fmt.Println()
-			
+
 			// Display share URL with coordinator address
 			fmt.Println("Share URL:")
 			fmt.Printf("  %s\n", resp.ShareUrl)
-			
+
 			return nil
 		},
 	}
-	
+
 	cmd.Flags().StringSlice("grant", nil, "DataStore permissions (format: path:right1,right2)")
 	cmd.Flags().String("description", "", "Optional description for the invite")
 	cmd.Flags().Int("max-uses", 1, "Maximum number of times the invite can be used")
 	cmd.Flags().String("validity", "24h", "How long the invite is valid (e.g., 24h, 7d)")
-	
+
 	return cmd
 }
 
@@ -161,19 +161,19 @@ func redeemInviteCmd() *cobra.Command {
 			inviteCode := args[0]
 			memberID, _ := cmd.Flags().GetString("member")
 			demoMode, _ := cmd.Flags().GetBool("demo")
-			
+
 			// Parse share URL if provided
 			coordinatorFromURL, code := parseInviteURL(inviteCode)
 			if code != "" {
 				inviteCode = code
 			}
-			
+
 			// Check if identity is initialized
 			identityStatus, err := checkIdentityStatus()
 			if err != nil {
 				return fmt.Errorf("failed to check identity status: %w", err)
 			}
-			
+
 			if !identityStatus.Initialized {
 				fmt.Println("❌ No identity configured")
 				fmt.Println("   Run 'collective identity init --global-id your@domain.collective' first")
@@ -186,20 +186,20 @@ func redeemInviteCmd() *cobra.Command {
 				}
 				return fmt.Errorf("identity required before redeeming invites")
 			}
-			
+
 			fmt.Printf("Redeeming invite code: %s\n", inviteCode)
 			fmt.Printf("As member: %s\n", identityStatus.GlobalID)
 			fmt.Println()
-			
+
 			// Demo mode - simulate successful flow
 			if demoMode {
 				return runDemoRedemption(inviteCode, identityStatus.GlobalID)
 			}
-			
+
 			// Step 1: Connect to coordinator and validate invite
 			fmt.Printf("✓ Identity found: %s\n", identityStatus.GlobalID)
 			fmt.Printf("✓ Connecting to coordinator...\n")
-			
+
 			// Use coordinator from URL if provided, otherwise default
 			coordinatorAddr := "localhost:8001"
 			if coordinatorFromURL != "" {
@@ -213,34 +213,34 @@ func redeemInviteCmd() *cobra.Command {
 			if conn != nil {
 				defer conn.Close()
 			}
-			
+
 			// Step 2: Simulate invite validation and configuration download
 			fmt.Printf("✓ Invite validated successfully\n")
 			fmt.Printf("✓ Downloading federation configuration...\n")
-			
+
 			// Step 3: Configure client certificates
 			err = configureClientCertificates(identityStatus.GlobalID, coordinatorAddr, inviteCode)
 			if err != nil {
 				return fmt.Errorf("failed to configure client certificates: %w", err)
 			}
-			
+
 			// Step 4: Add collective to identity
 			collectiveName := "alice-homelab" // Should be derived from coordinator info
 			err = addCollectiveToIdentity(collectiveName, coordinatorAddr)
 			if err != nil {
 				return fmt.Errorf("failed to add collective to identity: %w", err)
 			}
-			
+
 			fmt.Printf("✓ Generated client certificates\n")
 			fmt.Printf("✓ Added \"%s\" collective to identity\n", collectiveName)
-			
+
 			// Check if this is the first collective and set as default
 			if len(identityStatus.Collectives) == 0 {
 				fmt.Printf("✓ Set as default collective\n")
 			}
-			
+
 			fmt.Println()
-			
+
 			// Step 5: Test connection to verify setup
 			fmt.Printf("🔌 Testing connection to collective...\n")
 			if err := testCollectiveConnection(coordinatorAddr); err != nil {
@@ -250,21 +250,21 @@ func redeemInviteCmd() *cobra.Command {
 			} else {
 				fmt.Printf("✅ Connection test successful!\n")
 			}
-			
+
 			fmt.Println()
 			fmt.Println("Permissions granted:")
 			fmt.Println("  - /shared: read, write")
 			fmt.Println("  - /media: read")
 			fmt.Println()
 			fmt.Printf("✓ Setup complete! Try: collective status\n")
-			
+
 			return nil
 		},
 	}
-	
+
 	cmd.Flags().String("member", "", "Your federated address (e.g., bob@garage.collective.local)")
 	cmd.Flags().Bool("demo", false, "Run in demo mode to simulate successful redemption")
-	
+
 	return cmd
 }
 
@@ -279,7 +279,7 @@ func listInviteCmd() *cobra.Command {
 			fmt.Println("Active Federation Invites")
 			fmt.Println("========================")
 			fmt.Println("No active invites")
-			
+
 			return nil
 		},
 	}
@@ -294,19 +294,19 @@ func validateInviteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inviteCode := args[0]
-			
+
 			// Parse share URL if provided
 			_, code := parseInviteURL(inviteCode)
 			if code != "" {
 				inviteCode = code
 			}
-			
+
 			// TODO: Implement actual invite validation
 			fmt.Printf("✓ Invite code is valid\n")
 			fmt.Printf("Code: %s\n", inviteCode)
 			fmt.Printf("Expires: %s\n", time.Now().Add(24*time.Hour).Format(time.RFC3339))
 			fmt.Printf("Remaining uses: 1\n")
-			
+
 			return nil
 		},
 	}
@@ -321,10 +321,10 @@ func revokeInviteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inviteCode := args[0]
-			
+
 			// TODO: Implement actual invite revocation
 			fmt.Printf("✓ Invite code %s has been revoked\n", inviteCode)
-			
+
 			return nil
 		},
 	}
@@ -345,7 +345,7 @@ func statsInviteCmd() *cobra.Command {
 			fmt.Printf("Expired invites: 0\n")
 			fmt.Printf("Fully used invites: 0\n")
 			fmt.Printf("Total redemptions: 0\n")
-			
+
 			return nil
 		},
 	}
@@ -355,16 +355,16 @@ func statsInviteCmd() *cobra.Command {
 
 func parseGrants(grants []string) (map[string][]string, error) {
 	dataStoreGrants := make(map[string][]string)
-	
+
 	for _, grant := range grants {
 		parts := strings.SplitN(grant, ":", 2)
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid grant format: %s (expected path:rights)", grant)
 		}
-		
+
 		path := parts[0]
 		rightsStr := parts[1]
-		
+
 		// Split rights by + or ,
 		var rights []string
 		if strings.Contains(rightsStr, "+") {
@@ -372,12 +372,12 @@ func parseGrants(grants []string) (map[string][]string, error) {
 		} else {
 			rights = strings.Split(rightsStr, ",")
 		}
-		
+
 		// Clean up rights
 		for i, right := range rights {
 			rights[i] = strings.TrimSpace(strings.ToUpper(right))
 		}
-		
+
 		// Merge with existing rights for this path
 		if existing, exists := dataStoreGrants[path]; exists {
 			rightsMap := make(map[string]bool)
@@ -387,7 +387,7 @@ func parseGrants(grants []string) (map[string][]string, error) {
 			for _, r := range rights {
 				rightsMap[r] = true
 			}
-			
+
 			var merged []string
 			for r := range rightsMap {
 				merged = append(merged, r)
@@ -397,7 +397,7 @@ func parseGrants(grants []string) (map[string][]string, error) {
 			dataStoreGrants[path] = rights
 		}
 	}
-	
+
 	return dataStoreGrants, nil
 }
 
@@ -423,7 +423,7 @@ func checkIdentityStatus() (*IdentityStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check if identity is initialized
 	if config.UserIdentity == nil || config.UserIdentity.GlobalID == "" {
 		return &IdentityStatus{
@@ -432,13 +432,13 @@ func checkIdentityStatus() (*IdentityStatus, error) {
 			Collectives: []string{},
 		}, nil
 	}
-	
+
 	// Extract collective names
 	collectives := make([]string, 0, len(config.Collectives))
 	for _, collective := range config.Collectives {
 		collectives = append(collectives, collective.CollectiveID)
 	}
-	
+
 	return &IdentityStatus{
 		Initialized: true,
 		GlobalID:    config.UserIdentity.GlobalID,
@@ -446,20 +446,19 @@ func checkIdentityStatus() (*IdentityStatus, error) {
 	}, nil
 }
 
-
 func configureClientCertificates(globalID, coordinatorAddr, inviteCode string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get home directory: %w", err)
 	}
-	
+
 	certsDir := filepath.Join(home, ".collective", "certs")
 	if err := os.MkdirAll(certsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create certs directory: %w", err)
 	}
-	
+
 	// Step 1: Connect to coordinator's bootstrap server to get federation CA
-	// If the coordinator address uses the secure port (8001-8003), 
+	// If the coordinator address uses the secure port (8001-8003),
 	// automatically switch to the bootstrap port (9001-9003)
 	bootstrapAddr := coordinatorAddr
 	if strings.Contains(coordinatorAddr, ":800") {
@@ -468,61 +467,61 @@ func configureClientCertificates(globalID, coordinatorAddr, inviteCode string) e
 		bootstrapAddr = strings.Replace(bootstrapAddr, ":8002", ":9002", 1)
 		bootstrapAddr = strings.Replace(bootstrapAddr, ":8003", ":9003", 1)
 	}
-	
+
 	// Use insecure connection to the bootstrap server
 	conn, err := getInsecureConnection(bootstrapAddr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to coordinator: %w", err)
 	}
 	defer conn.Close()
-	
+
 	client := protocol.NewCoordinatorClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	// Get federation CA certificate
 	caResp, err := client.GetFederationCA(ctx, &protocol.GetFederationCARequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get federation CA: %w", err)
 	}
-	
+
 	if !caResp.Success {
 		return fmt.Errorf("coordinator refused CA request: %s", caResp.Message)
 	}
-	
+
 	// Save federation CA certificate
 	caPath := filepath.Join(certsDir, "ca.crt")
 	if err := os.WriteFile(caPath, []byte(caResp.CaCertificate), 0644); err != nil {
 		return fmt.Errorf("failed to save CA certificate: %w", err)
 	}
-	
+
 	// Step 2: Generate client private key using Ed25519
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return fmt.Errorf("failed to generate client key: %w", err)
 	}
-	
+
 	// Step 3: Create certificate signing request
 	template := &x509.CertificateRequest{
 		Subject: pkix.Name{
-			Organization:  []string{"Collective Storage Federation"},
-			Country:       []string{"US"},
-			CommonName:    globalID,
+			Organization: []string{"Collective Storage Federation"},
+			Country:      []string{"US"},
+			CommonName:   globalID,
 		},
 		SignatureAlgorithm: x509.PureEd25519,
 	}
-	
+
 	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, priv)
 	if err != nil {
 		return fmt.Errorf("failed to create CSR: %w", err)
 	}
-	
+
 	// Encode CSR as PEM
 	csrPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE REQUEST",
 		Bytes: csrDER,
 	})
-	
+
 	// Step 4: Request client certificate from coordinator
 	certResp, err := client.RequestClientCertificate(ctx, &protocol.RequestClientCertificateRequest{
 		Csr:        string(csrPEM),
@@ -532,33 +531,33 @@ func configureClientCertificates(globalID, coordinatorAddr, inviteCode string) e
 	if err != nil {
 		return fmt.Errorf("failed to request client certificate: %w", err)
 	}
-	
+
 	if !certResp.Success {
 		return fmt.Errorf("coordinator refused certificate request: %s", certResp.Message)
 	}
-	
+
 	// Step 5: Save client certificate
 	certPath := filepath.Join(certsDir, "client.crt")
 	if err := os.WriteFile(certPath, []byte(certResp.ClientCertificate), 0644); err != nil {
 		return fmt.Errorf("failed to save client certificate: %w", err)
 	}
-	
+
 	// Step 6: Save client private key
 	keyPath := filepath.Join(certsDir, "client.key")
 	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
 		return fmt.Errorf("failed to marshal private key: %w", err)
 	}
-	
+
 	keyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: privKeyBytes,
 	})
-	
+
 	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
 		return fmt.Errorf("failed to save client key: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -568,35 +567,35 @@ func addCollectiveToIdentity(name, coordinatorAddr string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load client config: %w", err)
 	}
-	
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get home directory: %w", err)
 	}
-	
+
 	// Define certificate paths
 	certsDir := filepath.Join(home, ".collective", "certs")
 	caPath := filepath.Join(certsDir, "ca.crt")
 	clientCertPath := filepath.Join(certsDir, "client.crt")
 	clientKeyPath := filepath.Join(certsDir, "client.key")
-	
+
 	// Create new collective info
 	collectiveInfo := config.CollectiveInfo{
 		CollectiveID:       name,
 		CoordinatorAddress: coordinatorAddr,
-		MemberID:          clientConfig.UserIdentity.GlobalID, // Use the global ID as member ID
-		Role:              "member",
+		MemberID:           clientConfig.UserIdentity.GlobalID, // Use the global ID as member ID
+		Role:               "member",
 		Certificates: config.CertificateConfig{
 			CACert:     caPath,
 			ClientCert: clientCertPath,
 			ClientKey:  clientKeyPath,
 		},
-		AutoDiscover:  true,
-		TrustLevel:    "high",
-		Description:   "Added via federation invite",
-		Tags:          []string{"federation", "invited"},
+		AutoDiscover: true,
+		TrustLevel:   "high",
+		Description:  "Added via federation invite",
+		Tags:         []string{"federation", "invited"},
 	}
-	
+
 	// Check if collective already exists and update it
 	found := false
 	for i, existing := range clientConfig.Collectives {
@@ -606,63 +605,63 @@ func addCollectiveToIdentity(name, coordinatorAddr string) error {
 			break
 		}
 	}
-	
+
 	// Add new collective if it doesn't exist
 	if !found {
 		clientConfig.Collectives = append(clientConfig.Collectives, collectiveInfo)
 	}
-	
+
 	// Set as preferred collective if this is the first one
 	if clientConfig.Defaults.PreferredCollective == "" || len(clientConfig.Collectives) == 1 {
 		clientConfig.Defaults.PreferredCollective = name
 	}
-	
+
 	// Save the updated configuration
 	if err := clientConfig.Save(); err != nil {
 		return fmt.Errorf("failed to save client config: %w", err)
 	}
-	
+
 	return nil
 }
 
 func runDemoRedemption(inviteCode, globalID string) error {
 	fmt.Printf("🎭 Demo Mode: Simulating successful invite redemption\n")
 	fmt.Println()
-	
+
 	// Step 1: Identity check
 	fmt.Printf("✓ Identity found: %s\n", globalID)
 	time.Sleep(200 * time.Millisecond)
-	
+
 	// Step 2: Coordinator connection
 	fmt.Printf("✓ Connecting to coordinator...\n")
 	time.Sleep(500 * time.Millisecond)
-	
+
 	// Step 3: Invite validation
 	fmt.Printf("✓ Invite validated successfully\n")
 	time.Sleep(300 * time.Millisecond)
-	
+
 	// Step 4: Configuration download
 	fmt.Printf("✓ Downloading federation configuration...\n")
 	time.Sleep(400 * time.Millisecond)
-	
+
 	// Step 5: Certificate generation
 	fmt.Printf("✓ Generated client certificates\n")
 	time.Sleep(600 * time.Millisecond)
-	
+
 	// Step 6: Identity update
 	fmt.Printf("✓ Added \"demo-homelab\" collective to identity\n")
 	fmt.Printf("✓ Set as default collective\n")
 	time.Sleep(300 * time.Millisecond)
-	
+
 	fmt.Println()
-	
+
 	// Step 7: Connection test
 	fmt.Printf("🔌 Testing connection to collective...\n")
 	time.Sleep(800 * time.Millisecond)
 	fmt.Printf("   📡 Connected to collective: demo-homelab\n")
 	fmt.Printf("   🖥  Available storage nodes: 3\n")
 	fmt.Printf("✅ Connection test successful!\n")
-	
+
 	fmt.Println()
 	fmt.Println("Permissions granted:")
 	fmt.Println("  - /shared: read, write")
@@ -670,7 +669,7 @@ func runDemoRedemption(inviteCode, globalID string) error {
 	fmt.Println()
 	fmt.Printf("✨ Setup complete! Try: collective status\n")
 	fmt.Printf("   Demo mode - no actual configuration was changed.\n")
-	
+
 	return nil
 }
 
@@ -682,27 +681,27 @@ func testCollectiveConnection(coordinatorAddr string) error {
 		return fmt.Errorf("connection failed: %w", err)
 	}
 	defer conn.Close()
-	
+
 	// Test with a status request to verify authentication works
 	client := protocol.NewCoordinatorClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	statusResp, err := client.GetStatus(ctx, &protocol.GetStatusRequest{})
 	if err != nil {
 		return fmt.Errorf("status request failed: %w", err)
 	}
-	
+
 	if statusResp.MemberId == "" {
 		return fmt.Errorf("invalid response from coordinator")
 	}
-	
+
 	// Display collective information to confirm successful connection
 	fmt.Printf("   📡 Connected to collective: %s\n", statusResp.MemberId)
 	totalNodes := len(statusResp.LocalNodes) + len(statusResp.RemoteNodes)
 	if totalNodes > 0 {
 		fmt.Printf("   🖥  Available storage nodes: %d\n", totalNodes)
 	}
-	
+
 	return nil
 }

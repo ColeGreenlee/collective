@@ -443,7 +443,7 @@ func authCommand() *cobra.Command {
 	authCmd.AddCommand(authExportCmd)
 	authCmd.AddCommand(authAutoInitCmd)
 	authCmd.AddCommand(authInfoCmd)
-	
+
 	// Add federation CA commands
 	AddFederationCACommands(authCmd)
 

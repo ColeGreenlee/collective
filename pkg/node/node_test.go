@@ -76,10 +76,10 @@ func TestNewNodeWithAuth(t *testing.T) {
 	logger := testLogger(t)
 	tempDir := t.TempDir()
 	cfg := testNodeConfig(t, tempDir)
-	
+
 	authCfg := &auth.AuthConfig{
-		Enabled: true,
-		CAPath:  "/tmp/ca.crt",
+		Enabled:  true,
+		CAPath:   "/tmp/ca.crt",
 		CertPath: "/tmp/cert.crt",
 		KeyPath:  "/tmp/key.pem",
 	}
@@ -100,12 +100,12 @@ func TestStoreChunk(t *testing.T) {
 	logger := testLogger(t)
 	tempDir := t.TempDir()
 	cfg := testNodeConfig(t, tempDir)
-	
+
 	node := New(cfg, "test-member", logger)
-	
+
 	// Create a test chunk
 	chunkData := []byte("test chunk data")
-	
+
 	ctx := context.Background()
 	req := &protocol.StoreChunkRequest{
 		ChunkId: "chunk-1",
@@ -150,13 +150,13 @@ func TestRetrieveChunk(t *testing.T) {
 	logger := testLogger(t)
 	tempDir := t.TempDir()
 	cfg := testNodeConfig(t, tempDir)
-	
+
 	node := New(cfg, "test-member", logger)
-	
+
 	// First store a chunk
 	chunkData := []byte("test chunk data for retrieval")
 	chunkID := types.ChunkID("chunk-retrieve-1")
-	
+
 	node.chunksMutex.Lock()
 	node.chunks[chunkID] = &types.Chunk{
 		ID:   chunkID,
@@ -167,7 +167,7 @@ func TestRetrieveChunk(t *testing.T) {
 	// Create chunks directory
 	chunksDir := filepath.Join(tempDir, "chunks")
 	os.MkdirAll(chunksDir, 0755)
-	
+
 	// Write chunk to disk
 	chunkPath := filepath.Join(chunksDir, string(chunkID))
 	err := os.WriteFile(chunkPath, chunkData, 0644)
@@ -200,17 +200,18 @@ func TestDeleteChunk(t *testing.T) {
 	logger := testLogger(t)
 	tempDir := t.TempDir()
 	cfg := testNodeConfig(t, tempDir)
-	
+
 	node := New(cfg, "test-member", logger)
-	
+
 	// First store a chunk
 	chunkData := []byte("test chunk to delete")
 	chunkID := types.ChunkID("chunk-delete-1")
-	
+
 	node.chunksMutex.Lock()
 	node.chunks[chunkID] = &types.Chunk{
 		ID:   chunkID,
 		Data: chunkData,
+		Size: int64(len(chunkData)),
 	}
 	node.chunksMutex.Unlock()
 
@@ -265,13 +266,13 @@ func TestGetStatus(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := testNodeConfig(t, tempDir)
 	cfg.StorageCapacity = 100 * 1024 * 1024 // 100MB
-	
+
 	node := New(cfg, "test-member", logger)
-	
+
 	// Add some test data
 	node.totalCapacity = 100 * 1024 * 1024 // 100MB
 	node.usedCapacity = 25 * 1024 * 1024   // 25MB
-	
+
 	// Store a chunk
 	chunkID := types.ChunkID("status-chunk-1")
 	node.chunksMutex.Lock()
@@ -317,13 +318,13 @@ func TestNodeCapacity(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := testNodeConfig(t, tempDir)
 	cfg.StorageCapacity = 1024 * 1024 * 1024 // 1GB
-	
+
 	node := New(cfg, "test-member", logger)
-	
+
 	if node.totalCapacity != cfg.StorageCapacity {
 		t.Errorf("Total capacity = %d, want %d", node.totalCapacity, cfg.StorageCapacity)
 	}
-	
+
 	if node.usedCapacity != 0 {
 		t.Errorf("Initial used capacity = %d, want 0", node.usedCapacity)
 	}
@@ -334,7 +335,7 @@ func TestRegisterWithCoordinator(t *testing.T) {
 	logger := testLogger(t)
 	tempDir := t.TempDir()
 	cfg := testNodeConfig(t, tempDir)
-	
+
 	node := New(cfg, "test-member", logger)
 
 	// Create a mock coordinator server
@@ -354,12 +355,18 @@ func TestRegisterWithCoordinator(t *testing.T) {
 
 	server := grpc.NewServer()
 	protocol.RegisterCoordinatorServer(server, mockCoordinator)
-	
+
 	go server.Serve(listener)
 	defer server.Stop()
 
 	// Update node's coordinator address
 	node.coordinatorAddress = listener.Addr().String()
+
+	// Connect to coordinator first
+	err = node.connectToCoordinator()
+	if err != nil {
+		t.Fatalf("Failed to connect to coordinator: %v", err)
+	}
 
 	// Register with coordinator
 	err = node.registerWithCoordinator()
@@ -396,22 +403,22 @@ func BenchmarkStoreChunk(b *testing.B) {
 		StorageCapacity:    1024 * 1024 * 1024, // 1GB
 		DataDir:            tempDir,
 	}
-	
+
 	node := New(cfg, "bench-member", logger)
 	ctx := context.Background()
-	
+
 	// Create test data
 	chunkData := make([]byte, 1024*1024) // 1MB chunk
 	for i := range chunkData {
 		chunkData[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := &protocol.StoreChunkRequest{
 			ChunkId: fmt.Sprintf("chunk-%d", i),
 			Data:    chunkData,
-			}
+		}
 		node.StoreChunk(ctx, req)
 	}
 }
@@ -427,10 +434,10 @@ func BenchmarkRetrieveChunk(b *testing.B) {
 		StorageCapacity:    1024 * 1024 * 1024, // 1GB
 		DataDir:            tempDir,
 	}
-	
+
 	node := New(cfg, "bench-member", logger)
 	ctx := context.Background()
-	
+
 	// Pre-store chunks
 	chunkData := make([]byte, 1024*1024) // 1MB chunk
 	for i := 0; i < 100; i++ {
@@ -438,14 +445,14 @@ func BenchmarkRetrieveChunk(b *testing.B) {
 		node.chunks[chunkID] = &types.Chunk{
 			ID:   chunkID,
 			Data: chunkData,
-			}
+		}
 		// Also write to disk
 		chunksDir := filepath.Join(tempDir, "chunks")
 		os.MkdirAll(chunksDir, 0755)
 		chunkPath := filepath.Join(chunksDir, string(chunkID))
 		os.WriteFile(chunkPath, chunkData, 0644)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := &protocol.RetrieveChunkRequest{

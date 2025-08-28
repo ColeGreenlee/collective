@@ -14,18 +14,18 @@ import (
 
 // FederatedFUSEAdapter provides FUSE filesystem access to federated storage
 type FederatedFUSEAdapter struct {
-	localDomain   string
-	connManager   *ConnectionManager
-	permManager   *PermissionManager
-	placement     *PlacementController
-	cache         *MediaCache
-	logger        *zap.Logger
-	
+	localDomain string
+	connManager *ConnectionManager
+	permManager *PermissionManager
+	placement   *PlacementController
+	cache       *MediaCache
+	logger      *zap.Logger
+
 	// Performance optimizations
 	prefetchQueue chan PrefetchRequest
 	readAhead     bool
 	cacheSize     int64
-	
+
 	mu sync.RWMutex
 }
 
@@ -38,7 +38,7 @@ type MediaCache struct {
 	currentSize int64
 	hitRate     float64
 	missRate    float64
-	
+
 	// Metrics
 	hits   int64
 	misses int64
@@ -61,8 +61,8 @@ type CachePriority int
 const (
 	PriorityLow CachePriority = iota
 	PriorityNormal
-	PriorityHigh    // Currently streaming
-	PriorityPinned  // Frequently accessed
+	PriorityHigh   // Currently streaming
+	PriorityPinned // Frequently accessed
 )
 
 // LRUList implements an LRU eviction policy
@@ -96,7 +96,7 @@ func NewFederatedFUSEAdapter(
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	
+
 	adapter := &FederatedFUSEAdapter{
 		localDomain:   localDomain,
 		connManager:   connManager,
@@ -107,13 +107,13 @@ func NewFederatedFUSEAdapter(
 		readAhead:     true,
 		cacheSize:     1024 * 1024 * 1024, // 1GB default cache
 	}
-	
+
 	// Initialize cache
 	adapter.cache = NewMediaCache(adapter.cacheSize)
-	
+
 	// Start prefetch worker
 	go adapter.prefetchWorker()
-	
+
 	return adapter
 }
 
@@ -124,7 +124,7 @@ func (fa *FederatedFUSEAdapter) ReadFile(ctx context.Context, path string, offse
 	if err != nil {
 		return nil, fmt.Errorf("invalid federated path: %w", err)
 	}
-	
+
 	// Check permissions
 	caller := fa.getCurrentUser()
 	hasAccess, err := fa.permManager.CheckPermission(path, caller, RightRead)
@@ -134,12 +134,12 @@ func (fa *FederatedFUSEAdapter) ReadFile(ctx context.Context, path string, offse
 	if !hasAccess {
 		return nil, fmt.Errorf("permission denied")
 	}
-	
+
 	// Determine if this is a local or remote file
 	if addr.IsLocal(fa.localDomain) {
 		return fa.readLocalFile(ctx, path, offset, size)
 	}
-	
+
 	return fa.readRemoteFile(ctx, addr, path, offset, size)
 }
 
@@ -154,7 +154,7 @@ func (fa *FederatedFUSEAdapter) readLocalFile(ctx context.Context, path string, 
 func (fa *FederatedFUSEAdapter) readRemoteFile(ctx context.Context, addr *FederatedAddress, path string, offset int64, size int) ([]byte, error) {
 	// Calculate which chunks we need
 	chunkIDs := fa.calculateChunksForRange(path, offset, size)
-	
+
 	// Check cache first
 	cachedData, complete := fa.readFromCache(chunkIDs)
 	if complete {
@@ -163,21 +163,21 @@ func (fa *FederatedFUSEAdapter) readRemoteFile(ctx context.Context, addr *Federa
 			zap.Int64("offset", offset))
 		return fa.extractRange(cachedData, offset, size), nil
 	}
-	
+
 	// Fetch missing chunks from remote
 	data, err := fa.fetchRemoteChunks(ctx, addr, chunkIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch remote chunks: %w", err)
 	}
-	
+
 	// Cache for future use
 	fa.cacheChunks(chunkIDs, data)
-	
+
 	// Trigger prefetch for sequential reads
 	if fa.readAhead {
 		fa.triggerPrefetch(path, offset+int64(size), size)
 	}
-	
+
 	return fa.extractRange(data, offset, size), nil
 }
 
@@ -188,48 +188,48 @@ func (fa *FederatedFUSEAdapter) fetchRemoteChunks(ctx context.Context, addr *Fed
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to %s: %w", addr.String(), err)
 	}
-	
+
 	// Fetch chunks in parallel for performance
 	var wg sync.WaitGroup
 	chunks := make(map[string][]byte)
 	errors := make(chan error, len(chunkIDs))
 	mu := sync.Mutex{}
-	
+
 	for _, chunkID := range chunkIDs {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			
+
 			// Fetch individual chunk
 			// In a real implementation, this would use a streaming API
 			// For now, we'll use a placeholder
-			
+
 			// This would actually fetch the chunk from the remote coordinator
 			// For demonstration, return empty data
 			chunkData := []byte{} // Placeholder
-			
+
 			mu.Lock()
 			chunks[id] = chunkData
 			mu.Unlock()
 		}(chunkID)
 	}
-	
+
 	wg.Wait()
 	close(errors)
-	
+
 	// Check for errors
 	for err := range errors {
 		if err != nil {
 			return nil, err
 		}
 	}
-	
+
 	// Combine chunks in order
 	var result []byte
 	for _, id := range chunkIDs {
 		result = append(result, chunks[id]...)
 	}
-	
+
 	return result, nil
 }
 
@@ -240,7 +240,7 @@ func (fa *FederatedFUSEAdapter) WriteFile(ctx context.Context, path string, data
 	if err != nil {
 		return fmt.Errorf("invalid federated path: %w", err)
 	}
-	
+
 	// Check permissions
 	caller := fa.getCurrentUser()
 	hasAccess, err := fa.permManager.CheckPermission(path, caller, RightWrite)
@@ -250,14 +250,14 @@ func (fa *FederatedFUSEAdapter) WriteFile(ctx context.Context, path string, data
 	if !hasAccess {
 		return fmt.Errorf("permission denied")
 	}
-	
+
 	// Use placement controller to determine where to store
 	chunkSize := len(data)
 	nodeIDs, err := fa.placement.PlaceChunk(path, int64(chunkSize), path)
 	if err != nil {
 		return fmt.Errorf("failed to determine placement: %w", err)
 	}
-	
+
 	// Write to selected nodes
 	return fa.writeToNodes(ctx, path, data, nodeIDs)
 }
@@ -269,7 +269,7 @@ func (fa *FederatedFUSEAdapter) prefetchWorker() {
 		if time.Now().After(req.Deadline) {
 			continue
 		}
-		
+
 		// Prefetch the chunk
 		fa.prefetchChunk(req.ChunkID)
 	}
@@ -279,7 +279,7 @@ func (fa *FederatedFUSEAdapter) prefetchWorker() {
 func (fa *FederatedFUSEAdapter) triggerPrefetch(path string, nextOffset int64, size int) {
 	// Calculate next chunks likely to be read
 	chunkIDs := fa.calculateChunksForRange(path, nextOffset, size*2) // Prefetch double the size
-	
+
 	for _, chunkID := range chunkIDs {
 		select {
 		case fa.prefetchQueue <- PrefetchRequest{
@@ -309,22 +309,22 @@ func NewMediaCache(maxSize int64) *MediaCache {
 func (mc *MediaCache) Get(chunkID string) ([]byte, bool) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	entry, exists := mc.entries[chunkID]
 	if !exists {
 		mc.misses++
 		mc.updateHitRate()
 		return nil, false
 	}
-	
+
 	// Update access time and move to front
 	entry.LastAccessed = time.Now()
 	entry.AccessCount++
 	mc.lru.moveToFront(entry.node)
-	
+
 	mc.hits++
 	mc.updateHitRate()
-	
+
 	return entry.Data, true
 }
 
@@ -332,9 +332,9 @@ func (mc *MediaCache) Get(chunkID string) ([]byte, bool) {
 func (mc *MediaCache) Put(chunkID string, data []byte, priority CachePriority) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	size := int64(len(data))
-	
+
 	// Check if already exists
 	if existing, exists := mc.entries[chunkID]; exists {
 		// Update existing entry
@@ -345,12 +345,12 @@ func (mc *MediaCache) Put(chunkID string, data []byte, priority CachePriority) {
 		mc.lru.moveToFront(existing.node)
 		return
 	}
-	
+
 	// Evict if necessary
 	for mc.currentSize+size > mc.maxSize && len(mc.entries) > 0 {
 		mc.evictLRU()
 	}
-	
+
 	// Add new entry
 	entry := &CacheEntry{
 		ChunkID:      chunkID,
@@ -360,10 +360,10 @@ func (mc *MediaCache) Put(chunkID string, data []byte, priority CachePriority) {
 		AccessCount:  1,
 		Priority:     priority,
 	}
-	
+
 	node := mc.lru.pushFront(entry)
 	entry.node = node
-	
+
 	mc.entries[chunkID] = entry
 	mc.currentSize += size
 }
@@ -373,18 +373,18 @@ func (mc *MediaCache) evictLRU() {
 	if mc.lru.tail == nil {
 		return
 	}
-	
+
 	// Skip pinned entries
 	node := mc.lru.tail
 	for node != nil && node.entry.Priority == PriorityPinned {
 		node = node.prev
 	}
-	
+
 	if node == nil {
 		// All entries are pinned, evict tail anyway
 		node = mc.lru.tail
 	}
-	
+
 	entry := node.entry
 	mc.lru.remove(node)
 	delete(mc.entries, entry.ChunkID)
@@ -404,7 +404,7 @@ func (mc *MediaCache) updateHitRate() {
 func (mc *MediaCache) GetStatistics() map[string]interface{} {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
-	
+
 	return map[string]interface{}{
 		"entries":      len(mc.entries),
 		"size":         mc.currentSize,
@@ -420,7 +420,7 @@ func (mc *MediaCache) GetStatistics() map[string]interface{} {
 
 func (l *LRUList) pushFront(entry *CacheEntry) *LRUNode {
 	node := &LRUNode{entry: entry}
-	
+
 	if l.head == nil {
 		l.head = node
 		l.tail = node
@@ -429,7 +429,7 @@ func (l *LRUList) pushFront(entry *CacheEntry) *LRUNode {
 		l.head.prev = node
 		l.head = node
 	}
-	
+
 	return node
 }
 
@@ -437,9 +437,9 @@ func (l *LRUList) moveToFront(node *LRUNode) {
 	if node == l.head {
 		return
 	}
-	
+
 	l.remove(node)
-	
+
 	node.prev = nil
 	node.next = l.head
 	l.head.prev = node
@@ -452,7 +452,7 @@ func (l *LRUList) remove(node *LRUNode) {
 	} else {
 		l.head = node.next
 	}
-	
+
 	if node.next != nil {
 		node.next.prev = node.prev
 	} else {
@@ -471,7 +471,7 @@ func (fa *FederatedFUSEAdapter) parsePathToAddress(path string) (*FederatedAddre
 			return ParseAddress(parts[1])
 		}
 	}
-	
+
 	// Default to local domain
 	return ParseAddress("coord@" + fa.localDomain)
 }
@@ -488,18 +488,18 @@ func (fa *FederatedFUSEAdapter) calculateChunksForRange(path string, offset int6
 	chunkSize := int64(1024 * 1024) // 1MB chunks
 	startChunk := offset / chunkSize
 	endChunk := (offset + int64(size)) / chunkSize
-	
+
 	chunks := []string{}
 	for i := startChunk; i <= endChunk; i++ {
 		chunks = append(chunks, fmt.Sprintf("%s-chunk-%d", path, i))
 	}
-	
+
 	return chunks
 }
 
 func (fa *FederatedFUSEAdapter) readFromCache(chunkIDs []string) ([]byte, bool) {
 	var result []byte
-	
+
 	for _, id := range chunkIDs {
 		data, exists := fa.cache.Get(id)
 		if !exists {
@@ -507,7 +507,7 @@ func (fa *FederatedFUSEAdapter) readFromCache(chunkIDs []string) ([]byte, bool) 
 		}
 		result = append(result, data...)
 	}
-	
+
 	return result, true
 }
 
@@ -515,14 +515,14 @@ func (fa *FederatedFUSEAdapter) cacheChunks(chunkIDs []string, data []byte) {
 	// Cache individual chunks
 	// This is simplified - real implementation would split data properly
 	chunkSize := len(data) / len(chunkIDs)
-	
+
 	for i, id := range chunkIDs {
 		start := i * chunkSize
 		end := start + chunkSize
 		if end > len(data) {
 			end = len(data)
 		}
-		
+
 		fa.cache.Put(id, data[start:end], PriorityNormal)
 	}
 }
@@ -532,12 +532,12 @@ func (fa *FederatedFUSEAdapter) extractRange(data []byte, offset int64, size int
 	if int(offset) >= len(data) {
 		return []byte{}
 	}
-	
+
 	end := int(offset) + size
 	if end > len(data) {
 		end = len(data)
 	}
-	
+
 	return data[offset:end]
 }
 
@@ -555,13 +555,13 @@ func (fa *FederatedFUSEAdapter) prefetchChunk(chunkID string) {
 
 // StreamingReader provides optimized streaming for media files
 type StreamingReader struct {
-	adapter      *FederatedFUSEAdapter
-	path         string
-	size         int64
-	position     int64
-	bufferSize   int
-	readAhead    chan []byte
-	mu           sync.Mutex
+	adapter    *FederatedFUSEAdapter
+	path       string
+	size       int64
+	position   int64
+	bufferSize int
+	readAhead  chan []byte
+	mu         sync.Mutex
 }
 
 // NewStreamingReader creates a reader optimized for media streaming
@@ -574,10 +574,10 @@ func (adapter *FederatedFUSEAdapter) NewStreamingReader(path string, size int64)
 		bufferSize: 64 * 1024, // 64KB buffer
 		readAhead:  make(chan []byte, 4),
 	}
-	
+
 	// Start read-ahead worker
 	go sr.readAheadWorker()
-	
+
 	return sr
 }
 
@@ -585,11 +585,11 @@ func (adapter *FederatedFUSEAdapter) NewStreamingReader(path string, size int64)
 func (sr *StreamingReader) Read(p []byte) (n int, err error) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
-	
+
 	if sr.position >= sr.size {
 		return 0, io.EOF
 	}
-	
+
 	// Try to get from read-ahead buffer
 	select {
 	case data := <-sr.readAhead:
@@ -598,25 +598,25 @@ func (sr *StreamingReader) Read(p []byte) (n int, err error) {
 		return n, nil
 	default:
 	}
-	
+
 	// Read directly
 	readSize := len(p)
 	if int64(readSize) > sr.size-sr.position {
 		readSize = int(sr.size - sr.position)
 	}
-	
+
 	data, err := sr.adapter.ReadFile(context.Background(), sr.path, sr.position, readSize)
 	if err != nil {
 		return 0, err
 	}
-	
+
 	n = copy(p, data)
 	sr.position += int64(n)
-	
+
 	if sr.position >= sr.size {
 		return n, io.EOF
 	}
-	
+
 	return n, nil
 }
 
@@ -634,12 +634,12 @@ func (sr *StreamingReader) readAheadWorker() {
 		if nextPos >= sr.size {
 			break
 		}
-		
+
 		data, err := sr.adapter.ReadFile(context.Background(), sr.path, nextPos, sr.bufferSize)
 		if err != nil {
 			break
 		}
-		
+
 		select {
 		case sr.readAhead <- data:
 		default:

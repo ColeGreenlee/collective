@@ -20,41 +20,41 @@ type FederationMetrics struct {
 	ConnectionsUnhealthy prometheus.Gauge
 	ConnectionAttempts   prometheus.Counter
 	ConnectionFailures   prometheus.Counter
-	
+
 	// Gossip metrics
-	GossipPeers          prometheus.Gauge
-	GossipMessages       prometheus.Counter
-	GossipLatency        prometheus.Histogram
-	GossipFailures       prometheus.Counter
-	
+	GossipPeers    prometheus.Gauge
+	GossipMessages prometheus.Counter
+	GossipLatency  prometheus.Histogram
+	GossipFailures prometheus.Counter
+
 	// Placement metrics
-	PlacementOperations  prometheus.Counter
-	PlacementFailures    prometheus.Counter
-	PlacementLatency     prometheus.Histogram
-	ChunksPerNode        *prometheus.GaugeVec
-	
+	PlacementOperations prometheus.Counter
+	PlacementFailures   prometheus.Counter
+	PlacementLatency    prometheus.Histogram
+	ChunksPerNode       *prometheus.GaugeVec
+
 	// Permission metrics
-	PermissionChecks     prometheus.Counter
-	PermissionDenials    prometheus.Counter
-	PermissionLatency    prometheus.Histogram
-	DataStoresTotal      prometheus.Gauge
-	
+	PermissionChecks  prometheus.Counter
+	PermissionDenials prometheus.Counter
+	PermissionLatency prometheus.Histogram
+	DataStoresTotal   prometheus.Gauge
+
 	// Invite metrics
-	InvitesGenerated     prometheus.Counter
-	InvitesRedeemed      prometheus.Counter
-	InvitesExpired       prometheus.Counter
-	InvitesActive        prometheus.Gauge
-	
+	InvitesGenerated prometheus.Counter
+	InvitesRedeemed  prometheus.Counter
+	InvitesExpired   prometheus.Counter
+	InvitesActive    prometheus.Gauge
+
 	// Resilience metrics
-	RetryAttempts        prometheus.Counter
-	CircuitBreakerOpens  prometheus.Counter
-	FailoverOperations   prometheus.Counter
-	FailoverSuccess      prometheus.Counter
-	
+	RetryAttempts       prometheus.Counter
+	CircuitBreakerOpens prometheus.Counter
+	FailoverOperations  prometheus.Counter
+	FailoverSuccess     prometheus.Counter
+
 	// Health metrics
-	ClusterHealth        prometheus.Gauge  // 0-100 score
-	NodeHealth           *prometheus.GaugeVec
-	LastHealthCheck      prometheus.Gauge
+	ClusterHealth   prometheus.Gauge // 0-100 score
+	NodeHealth      *prometheus.GaugeVec
+	LastHealthCheck prometheus.Gauge
 }
 
 // NewFederationMetrics creates and registers Prometheus metrics
@@ -62,7 +62,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 	if registry == nil {
 		registry = prometheus.DefaultRegisterer
 	}
-	
+
 	fm := &FederationMetrics{
 		// Connection metrics
 		ConnectionsTotal: promauto.With(registry).NewGauge(prometheus.GaugeOpts{
@@ -85,7 +85,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 			Name: "federation_connection_failures_total",
 			Help: "Total number of connection failures",
 		}),
-		
+
 		// Gossip metrics
 		GossipPeers: promauto.With(registry).NewGauge(prometheus.GaugeOpts{
 			Name: "federation_gossip_peers",
@@ -104,7 +104,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 			Name: "federation_gossip_failures_total",
 			Help: "Total number of gossip failures",
 		}),
-		
+
 		// Placement metrics
 		PlacementOperations: promauto.With(registry).NewCounter(prometheus.CounterOpts{
 			Name: "federation_placement_operations_total",
@@ -123,7 +123,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 			Name: "federation_chunks_per_node",
 			Help: "Number of chunks stored per node",
 		}, []string{"node", "domain"}),
-		
+
 		// Permission metrics
 		PermissionChecks: promauto.With(registry).NewCounter(prometheus.CounterOpts{
 			Name: "federation_permission_checks_total",
@@ -142,7 +142,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 			Name: "federation_datastores_total",
 			Help: "Total number of DataStores",
 		}),
-		
+
 		// Invite metrics
 		InvitesGenerated: promauto.With(registry).NewCounter(prometheus.CounterOpts{
 			Name: "federation_invites_generated_total",
@@ -160,7 +160,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 			Name: "federation_invites_active",
 			Help: "Number of active invites",
 		}),
-		
+
 		// Resilience metrics
 		RetryAttempts: promauto.With(registry).NewCounter(prometheus.CounterOpts{
 			Name: "federation_retry_attempts_total",
@@ -178,7 +178,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 			Name: "federation_failover_success_total",
 			Help: "Total number of successful failovers",
 		}),
-		
+
 		// Health metrics
 		ClusterHealth: promauto.With(registry).NewGauge(prometheus.GaugeOpts{
 			Name: "federation_cluster_health_score",
@@ -193,7 +193,7 @@ func NewFederationMetrics(registry prometheus.Registerer) *FederationMetrics {
 			Help: "Timestamp of last health check",
 		}),
 	}
-	
+
 	return fm
 }
 
@@ -206,12 +206,12 @@ type MetricsHealthMonitor struct {
 	permissionMgr   *PermissionManager
 	inviteMgr       *InviteManager
 	logger          *zap.Logger
-	
-	checkInterval   time.Duration
-	mu              sync.RWMutex
-	lastCheck       time.Time
-	clusterHealth   float64
-	stopChan        chan struct{}
+
+	checkInterval time.Duration
+	mu            sync.RWMutex
+	lastCheck     time.Time
+	clusterHealth float64
+	stopChan      chan struct{}
 }
 
 // NewMetricsHealthMonitor creates a new health monitor
@@ -227,7 +227,7 @@ func NewMetricsHealthMonitor(
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	
+
 	return &MetricsHealthMonitor{
 		metrics:         metrics,
 		gossip:          gossip,
@@ -255,10 +255,10 @@ func (hm *MetricsHealthMonitor) Stop() {
 func (hm *MetricsHealthMonitor) monitorLoop() {
 	ticker := time.NewTicker(hm.checkInterval)
 	defer ticker.Stop()
-	
+
 	// Initial check
 	hm.performHealthCheck()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -273,10 +273,10 @@ func (hm *MetricsHealthMonitor) monitorLoop() {
 func (hm *MetricsHealthMonitor) performHealthCheck() {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
-	
+
 	hm.lastCheck = time.Now()
 	hm.metrics.LastHealthCheck.Set(float64(hm.lastCheck.Unix()))
-	
+
 	// Collect connection metrics
 	if hm.connectionMgr != nil {
 		stats := hm.connectionMgr.GetStatistics()
@@ -290,13 +290,13 @@ func (hm *MetricsHealthMonitor) performHealthCheck() {
 			hm.metrics.ConnectionsUnhealthy.Set(float64(unhealthy))
 		}
 	}
-	
+
 	// Collect gossip metrics
 	if hm.gossip != nil {
 		// GetHealthyPeers returns PeerState objects
 		healthyPeers := hm.gossip.GetHealthyPeers()
 		hm.metrics.GossipPeers.Set(float64(len(healthyPeers)))
-		
+
 		// Update node health scores
 		for _, peer := range healthyPeers {
 			health := hm.calculateNodeHealth(peer)
@@ -306,20 +306,20 @@ func (hm *MetricsHealthMonitor) performHealthCheck() {
 			).Set(health)
 		}
 	}
-	
+
 	// Collect placement metrics
 	if hm.placementEngine != nil {
 		metrics := hm.placementEngine.GetMetrics()
 		hm.metrics.PlacementOperations.Add(float64(metrics.TotalPlacements))
 		hm.metrics.PlacementFailures.Add(float64(metrics.FailedPlacements))
 	}
-	
+
 	// Collect permission metrics
 	if hm.permissionMgr != nil {
 		datastores := hm.permissionMgr.ListDataStores()
 		hm.metrics.DataStoresTotal.Set(float64(len(datastores)))
 	}
-	
+
 	// Collect invite metrics
 	if hm.inviteMgr != nil {
 		stats := hm.inviteMgr.GetInviteStats()
@@ -327,11 +327,11 @@ func (hm *MetricsHealthMonitor) performHealthCheck() {
 			hm.metrics.InvitesActive.Set(float64(active))
 		}
 	}
-	
+
 	// Calculate overall cluster health
 	hm.clusterHealth = hm.calculateClusterHealth()
 	hm.metrics.ClusterHealth.Set(hm.clusterHealth)
-	
+
 	hm.logger.Debug("Health check completed",
 		zap.Float64("cluster_health", hm.clusterHealth),
 		zap.Time("timestamp", hm.lastCheck))
@@ -340,7 +340,7 @@ func (hm *MetricsHealthMonitor) performHealthCheck() {
 // calculateNodeHealth calculates health score for a single node
 func (hm *MetricsHealthMonitor) calculateNodeHealth(peer *PeerState) float64 {
 	health := 100.0
-	
+
 	// Factor in last seen time
 	timeSinceLastSeen := time.Since(peer.LastSeen)
 	if timeSinceLastSeen > 5*time.Minute {
@@ -348,7 +348,7 @@ func (hm *MetricsHealthMonitor) calculateNodeHealth(peer *PeerState) float64 {
 	} else if timeSinceLastSeen > 1*time.Minute {
 		health -= 20
 	}
-	
+
 	// Factor in status
 	switch peer.Status {
 	case PeerDead:
@@ -356,30 +356,30 @@ func (hm *MetricsHealthMonitor) calculateNodeHealth(peer *PeerState) float64 {
 	case PeerSuspected:
 		health = health * 0.5
 	}
-	
+
 	if health < 0 {
 		health = 0
 	}
-	
+
 	return health
 }
 
 // calculateClusterHealth calculates overall cluster health score
 func (hm *MetricsHealthMonitor) calculateClusterHealth() float64 {
 	factors := []float64{}
-	
+
 	// Factor 1: Connection health (30% weight)
 	if hm.connectionMgr != nil {
 		stats := hm.connectionMgr.GetStatistics()
 		total := stats["total_nodes"].(int)
 		healthy := stats["healthy_nodes"].(int)
-		
+
 		if total > 0 {
 			connectionHealth := float64(healthy) / float64(total) * 100
 			factors = append(factors, connectionHealth*0.3)
 		}
 	}
-	
+
 	// Factor 2: Gossip health (20% weight)
 	if hm.gossip != nil {
 		healthyPeers := hm.gossip.GetHealthyPeers()
@@ -391,31 +391,31 @@ func (hm *MetricsHealthMonitor) calculateClusterHealth() float64 {
 			factors = append(factors, gossipHealth*0.2)
 		}
 	}
-	
+
 	// Factor 3: Placement success rate (20% weight)
 	if hm.placementEngine != nil {
 		metrics := hm.placementEngine.GetMetrics()
 		if metrics.TotalPlacements > 0 {
-			successRate := float64(metrics.TotalPlacements-metrics.FailedPlacements) / 
-						  float64(metrics.TotalPlacements) * 100
+			successRate := float64(metrics.TotalPlacements-metrics.FailedPlacements) /
+				float64(metrics.TotalPlacements) * 100
 			factors = append(factors, successRate*0.2)
 		}
 	}
-	
+
 	// Factor 4: Base health (30% weight) - system is running
 	factors = append(factors, 30.0)
-	
+
 	// Sum all factors
 	totalHealth := 0.0
 	for _, factor := range factors {
 		totalHealth += factor
 	}
-	
+
 	// Cap at 100
 	if totalHealth > 100 {
 		totalHealth = 100
 	}
-	
+
 	return totalHealth
 }
 
@@ -423,7 +423,7 @@ func (hm *MetricsHealthMonitor) calculateClusterHealth() float64 {
 func (hm *MetricsHealthMonitor) GetHealth() (float64, time.Time) {
 	hm.mu.RLock()
 	defer hm.mu.RUnlock()
-	
+
 	return hm.clusterHealth, hm.lastCheck
 }
 
@@ -438,7 +438,7 @@ func NewHealthEndpoint(monitor *MetricsHealthMonitor, logger *zap.Logger) *Healt
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	
+
 	return &HealthEndpoint{
 		monitor: monitor,
 		logger:  logger,
@@ -456,10 +456,10 @@ func (he *HealthEndpoint) RegisterHandlers(mux *http.ServeMux) {
 // handleHealth provides detailed health information
 func (he *HealthEndpoint) handleHealth(w http.ResponseWriter, r *http.Request) {
 	health, lastCheck := he.monitor.GetHealth()
-	
+
 	status := "healthy"
 	statusCode := http.StatusOK
-	
+
 	if health < 50 {
 		status = "unhealthy"
 		statusCode = http.StatusServiceUnavailable
@@ -467,14 +467,14 @@ func (he *HealthEndpoint) handleHealth(w http.ResponseWriter, r *http.Request) {
 		status = "degraded"
 		statusCode = http.StatusOK
 	}
-	
+
 	response := fmt.Sprintf(`{
 		"status": "%s",
 		"health_score": %.2f,
 		"last_check": "%s",
 		"timestamp": "%s"
 	}`, status, health, lastCheck.Format(time.RFC3339), time.Now().Format(time.RFC3339))
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write([]byte(response))
@@ -490,7 +490,7 @@ func (he *HealthEndpoint) handleLiveness(w http.ResponseWriter, r *http.Request)
 // handleReadiness checks if the service is ready to handle requests
 func (he *HealthEndpoint) handleReadiness(w http.ResponseWriter, r *http.Request) {
 	health, _ := he.monitor.GetHealth()
-	
+
 	// Consider ready if health > 30%
 	if health > 30 {
 		w.WriteHeader(http.StatusOK)
@@ -504,23 +504,23 @@ func (he *HealthEndpoint) handleReadiness(w http.ResponseWriter, r *http.Request
 // StartMetricsServer starts a Prometheus metrics server
 func StartMetricsServer(port int, monitor *MetricsHealthMonitor, logger *zap.Logger) *http.Server {
 	mux := http.NewServeMux()
-	
+
 	// Register health endpoints
 	healthEndpoint := NewHealthEndpoint(monitor, logger)
 	healthEndpoint.RegisterHandlers(mux)
-	
+
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
 	}
-	
+
 	go func() {
 		logger.Info("Starting metrics server", zap.Int("port", port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("Metrics server failed", zap.Error(err))
 		}
 	}()
-	
+
 	return server
 }
 

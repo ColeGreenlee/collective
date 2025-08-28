@@ -26,7 +26,7 @@ func TestTrustStore_LoadFederationRootCA(t *testing.T) {
 	// Test loading root CA
 	ts := NewTrustStore()
 	rootCAPath := filepath.Join(tempDir, "ca.crt")
-	
+
 	if err := ts.LoadFederationRootCA(rootCAPath); err != nil {
 		t.Errorf("Failed to load root CA: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestTrustStore_AddRemoveMemberCA(t *testing.T) {
 	// Generate member CAs
 	aliceCAPath := filepath.Join(tempDir, "alice.test.collective.local-ca.crt")
 	bobCAPath := filepath.Join(tempDir, "bob.test.collective.local-ca.crt")
-	
+
 	if err := fcm.GenerateMemberCA("alice.test.collective.local", 180*24*time.Hour, aliceCAPath); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestTrustStore_AddRemoveMemberCA(t *testing.T) {
 	if err := ts.AddMemberCA("alice.test.collective.local", aliceCAPath); err != nil {
 		t.Errorf("Failed to add Alice CA: %v", err)
 	}
-	
+
 	if err := ts.AddMemberCA("bob.test.collective.local", bobCAPath); err != nil {
 		t.Errorf("Failed to add Bob CA: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestTrustStore_LoadCADirectory(t *testing.T) {
 	if err := fcm.GenerateFederationRootCA("test.collective.local", 365*24*time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if err := fcm.LoadCA(); err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestTrustStore_ValidateCertificate(t *testing.T) {
 	if err := fcm.GenerateFederationRootCA("test.collective.local", 365*24*time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if err := fcm.LoadCA(); err != nil {
 		t.Fatal(err)
 	}
@@ -219,20 +219,20 @@ func TestTrustStore_ValidateCertificate(t *testing.T) {
 
 	// Test cache functionality
 	ts.SetCacheTTL(1 * time.Second)
-	
+
 	// First validation should cache the result
 	valid1, _, _ := ts.ValidateCertificate(aliceCA)
-	
+
 	// Second validation should use cache
 	valid2, _, _ := ts.ValidateCertificate(aliceCA)
-	
+
 	if valid1 != valid2 {
 		t.Error("Cache validation inconsistent")
 	}
 
 	// Wait for cache to expire
 	time.Sleep(1100 * time.Millisecond)
-	
+
 	// Should revalidate after cache expiry
 	valid3, _, _ := ts.ValidateCertificate(aliceCA)
 	if valid3 != valid1 {
@@ -253,13 +253,13 @@ func TestTrustStore_CertPool(t *testing.T) {
 	if err := fcm.GenerateFederationRootCA("test.collective.local", 365*24*time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if err := fcm.LoadCA(); err != nil {
 		t.Fatal(err)
 	}
 
 	// Generate member CAs
-	if err := fcm.GenerateMemberCA("alice.test.collective.local", 180*24*time.Hour, 
+	if err := fcm.GenerateMemberCA("alice.test.collective.local", 180*24*time.Hour,
 		filepath.Join(tempDir, "alice.test.collective.local-ca.crt")); err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func TestTrustStore_CARotation(t *testing.T) {
 	if err := fcm.GenerateFederationRootCA("test.collective.local", 365*24*time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if err := fcm.LoadCA(); err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +371,7 @@ func TestTrustStore_ConcurrentAccess(t *testing.T) {
 	if err := fcm.GenerateFederationRootCA("test.collective.local", 365*24*time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if err := fcm.LoadCA(); err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +384,7 @@ func TestTrustStore_ConcurrentAccess(t *testing.T) {
 
 	// Test concurrent reads and writes
 	done := make(chan bool)
-	
+
 	// Reader goroutine
 	go func() {
 		for i := 0; i < 100; i++ {

@@ -15,17 +15,17 @@ import (
 // TrustStore manages multiple CA certificates for federation trust validation
 type TrustStore struct {
 	mu sync.RWMutex
-	
+
 	// Root CA for the federation
 	rootCA *x509.Certificate
-	
+
 	// Member CAs (intermediate certificates)
 	memberCAs map[string]*x509.Certificate // domain -> CA cert
-	
+
 	// Certificate pools for validation
 	rootPool   *x509.CertPool
 	memberPool *x509.CertPool
-	
+
 	// Validation cache for performance
 	validationCache map[string]*validationCacheEntry
 	cacheTTL        time.Duration
@@ -53,30 +53,30 @@ func NewTrustStore() *TrustStore {
 func (ts *TrustStore) LoadFederationRootCA(certPath string) error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
-	
+
 	certPEM, err := ioutil.ReadFile(certPath)
 	if err != nil {
 		return fmt.Errorf("failed to read root CA certificate: %w", err)
 	}
-	
+
 	block, _ := pem.Decode(certPEM)
 	if block == nil || block.Type != "CERTIFICATE" {
 		return fmt.Errorf("failed to parse root CA PEM")
 	}
-	
+
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return fmt.Errorf("failed to parse root CA certificate: %w", err)
 	}
-	
+
 	if !cert.IsCA {
 		return fmt.Errorf("certificate is not a CA certificate")
 	}
-	
+
 	ts.rootCA = cert
 	ts.rootPool = x509.NewCertPool()
 	ts.rootPool.AddCert(cert)
-	
+
 	return nil
 }
 
@@ -84,26 +84,26 @@ func (ts *TrustStore) LoadFederationRootCA(certPath string) error {
 func (ts *TrustStore) AddMemberCA(memberDomain string, certPath string) error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
-	
+
 	certPEM, err := ioutil.ReadFile(certPath)
 	if err != nil {
 		return fmt.Errorf("failed to read member CA certificate: %w", err)
 	}
-	
+
 	block, _ := pem.Decode(certPEM)
 	if block == nil || block.Type != "CERTIFICATE" {
 		return fmt.Errorf("failed to parse member CA PEM")
 	}
-	
+
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return fmt.Errorf("failed to parse member CA certificate: %w", err)
 	}
-	
+
 	if !cert.IsCA {
 		return fmt.Errorf("certificate is not a CA certificate")
 	}
-	
+
 	// Verify the member CA is signed by the root CA
 	if ts.rootCA != nil {
 		opts := x509.VerifyOptions{
@@ -113,18 +113,18 @@ func (ts *TrustStore) AddMemberCA(memberDomain string, certPath string) error {
 				x509.ExtKeyUsageClientAuth,
 			},
 		}
-		
+
 		if _, err := cert.Verify(opts); err != nil {
 			return fmt.Errorf("member CA not signed by federation root CA: %w", err)
 		}
 	}
-	
+
 	ts.memberCAs[memberDomain] = cert
 	ts.memberPool.AddCert(cert)
-	
+
 	// Clear validation cache when CA is added
 	ts.clearCacheLocked()
-	
+
 	return nil
 }
 
@@ -132,22 +132,22 @@ func (ts *TrustStore) AddMemberCA(memberDomain string, certPath string) error {
 func (ts *TrustStore) RemoveMemberCA(memberDomain string) error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
-	
+
 	if _, exists := ts.memberCAs[memberDomain]; !exists {
 		return fmt.Errorf("member CA for %s not found", memberDomain)
 	}
-	
+
 	delete(ts.memberCAs, memberDomain)
-	
+
 	// Rebuild member pool without the removed CA
 	ts.memberPool = x509.NewCertPool()
 	for _, cert := range ts.memberCAs {
 		ts.memberPool.AddCert(cert)
 	}
-	
+
 	// Clear validation cache when CA is removed
 	ts.clearCacheLocked()
-	
+
 	return nil
 }
 
@@ -160,13 +160,13 @@ func (ts *TrustStore) LoadCADirectory(dirPath string) error {
 			return fmt.Errorf("failed to load root CA: %w", err)
 		}
 	}
-	
+
 	// Load member CAs
 	files, err := ioutil.ReadDir(dirPath)
 	if err != nil {
 		return fmt.Errorf("failed to read CA directory: %w", err)
 	}
-	
+
 	for _, file := range files {
 		if filepath.Ext(file.Name()) == ".crt" && file.Name() != "ca.crt" {
 			// Extract member domain from filename (e.g., alice.collective.local-ca.crt)
@@ -174,7 +174,7 @@ func (ts *TrustStore) LoadCADirectory(dirPath string) error {
 			if len(name) > 7 && name[len(name)-7:] == "-ca.crt" {
 				memberDomain := name[:len(name)-7]
 				certPath := filepath.Join(dirPath, file.Name())
-				
+
 				if err := ts.AddMemberCA(memberDomain, certPath); err != nil {
 					// Log error but continue loading other CAs
 					fmt.Fprintf(os.Stderr, "Warning: failed to load member CA %s: %v\n", memberDomain, err)
@@ -182,14 +182,14 @@ func (ts *TrustStore) LoadCADirectory(dirPath string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
 // ValidateCertificate validates a certificate against the trust store
 func (ts *TrustStore) ValidateCertificate(cert *x509.Certificate) (bool, string, error) {
 	ts.mu.RLock()
-	
+
 	// Check cache first
 	cacheKey := string(cert.Raw)
 	if entry, exists := ts.validationCache[cacheKey]; exists {
@@ -199,16 +199,16 @@ func (ts *TrustStore) ValidateCertificate(cert *x509.Certificate) (bool, string,
 		}
 	}
 	ts.mu.RUnlock()
-	
+
 	// Perform validation
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
-	
+
 	// Try to validate against each member CA
 	for memberDomain, memberCA := range ts.memberCAs {
 		intermediatePool := x509.NewCertPool()
 		intermediatePool.AddCert(memberCA)
-		
+
 		opts := x509.VerifyOptions{
 			Roots:         ts.rootPool,
 			Intermediates: intermediatePool,
@@ -217,7 +217,7 @@ func (ts *TrustStore) ValidateCertificate(cert *x509.Certificate) (bool, string,
 				x509.ExtKeyUsageClientAuth,
 			},
 		}
-		
+
 		if _, err := cert.Verify(opts); err == nil {
 			// Cache the successful validation
 			ts.validationCache[cacheKey] = &validationCacheEntry{
@@ -228,7 +228,7 @@ func (ts *TrustStore) ValidateCertificate(cert *x509.Certificate) (bool, string,
 			return true, memberDomain, nil
 		}
 	}
-	
+
 	// Try direct validation against root (for intermediate CAs)
 	if cert.IsCA {
 		opts := x509.VerifyOptions{
@@ -238,7 +238,7 @@ func (ts *TrustStore) ValidateCertificate(cert *x509.Certificate) (bool, string,
 				x509.ExtKeyUsageClientAuth,
 			},
 		}
-		
+
 		if _, err := cert.Verify(opts); err == nil {
 			ts.validationCache[cacheKey] = &validationCacheEntry{
 				valid:     true,
@@ -248,14 +248,14 @@ func (ts *TrustStore) ValidateCertificate(cert *x509.Certificate) (bool, string,
 			return true, "root", nil
 		}
 	}
-	
+
 	// Cache the failed validation
 	ts.validationCache[cacheKey] = &validationCacheEntry{
 		valid:     false,
 		expiresAt: time.Now().Add(ts.cacheTTL),
 		memberID:  "",
 	}
-	
+
 	return false, "", fmt.Errorf("certificate not trusted by any CA in the federation")
 }
 
@@ -266,10 +266,10 @@ func (ts *TrustStore) GetServerTLSConfig(certPath, keyPath string) (*tls.Config,
 	if err != nil {
 		return nil, fmt.Errorf("failed to load server certificate: %w", err)
 	}
-	
+
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
-	
+
 	// Create a combined pool with root and all member CAs
 	certPool := x509.NewCertPool()
 	if ts.rootCA != nil {
@@ -278,7 +278,7 @@ func (ts *TrustStore) GetServerTLSConfig(certPath, keyPath string) (*tls.Config,
 	for _, memberCert := range ts.memberCAs {
 		certPool.AddCert(memberCert)
 	}
-	
+
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientAuth:   tls.RequireAndVerifyClientCert,
@@ -288,20 +288,20 @@ func (ts *TrustStore) GetServerTLSConfig(certPath, keyPath string) (*tls.Config,
 			if len(rawCerts) == 0 {
 				return fmt.Errorf("no certificates provided")
 			}
-			
+
 			peerCert, err := x509.ParseCertificate(rawCerts[0])
 			if err != nil {
 				return fmt.Errorf("failed to parse peer certificate: %w", err)
 			}
-			
+
 			valid, memberID, err := ts.ValidateCertificate(peerCert)
 			if !valid {
 				return fmt.Errorf("certificate validation failed: %w", err)
 			}
-			
+
 			// Optional: log which member validated the certificate
 			_ = memberID
-			
+
 			return nil
 		},
 	}, nil
@@ -318,10 +318,10 @@ func (ts *TrustStore) GetClientTLSConfig(serverName, certPath, keyPath string) (
 		}
 		certificates = []tls.Certificate{cert}
 	}
-	
+
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
-	
+
 	// Create a combined pool with root and all member CAs
 	certPool := x509.NewCertPool()
 	if ts.rootCA != nil {
@@ -330,7 +330,7 @@ func (ts *TrustStore) GetClientTLSConfig(serverName, certPath, keyPath string) (
 	for _, memberCert := range ts.memberCAs {
 		certPool.AddCert(memberCert)
 	}
-	
+
 	return &tls.Config{
 		ServerName:   serverName,
 		Certificates: certificates,
@@ -340,20 +340,20 @@ func (ts *TrustStore) GetClientTLSConfig(serverName, certPath, keyPath string) (
 			if len(rawCerts) == 0 {
 				return fmt.Errorf("no certificates provided")
 			}
-			
+
 			peerCert, err := x509.ParseCertificate(rawCerts[0])
 			if err != nil {
 				return fmt.Errorf("failed to parse peer certificate: %w", err)
 			}
-			
+
 			valid, memberID, err := ts.ValidateCertificate(peerCert)
 			if !valid {
 				return fmt.Errorf("certificate validation failed: %w", err)
 			}
-			
+
 			// Optional: log which member validated the certificate
 			_ = memberID
-			
+
 			return nil
 		},
 	}, nil
@@ -363,7 +363,7 @@ func (ts *TrustStore) GetClientTLSConfig(serverName, certPath, keyPath string) (
 func (ts *TrustStore) GetCertPool() *x509.CertPool {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
-	
+
 	pool := x509.NewCertPool()
 	if ts.rootCA != nil {
 		pool.AddCert(ts.rootCA)
@@ -371,7 +371,7 @@ func (ts *TrustStore) GetCertPool() *x509.CertPool {
 	for _, cert := range ts.memberCAs {
 		pool.AddCert(cert)
 	}
-	
+
 	return pool
 }
 
@@ -379,7 +379,7 @@ func (ts *TrustStore) GetCertPool() *x509.CertPool {
 func (ts *TrustStore) ListMemberCAs() []string {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
-	
+
 	domains := make([]string, 0, len(ts.memberCAs))
 	for domain := range ts.memberCAs {
 		domains = append(domains, domain)
@@ -403,12 +403,12 @@ func (ts *TrustStore) clearCacheLocked() {
 func (ts *TrustStore) GetMemberCA(memberDomain string) (*x509.Certificate, error) {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
-	
+
 	cert, exists := ts.memberCAs[memberDomain]
 	if !exists {
 		return nil, fmt.Errorf("member CA for %s not found", memberDomain)
 	}
-	
+
 	return cert, nil
 }
 

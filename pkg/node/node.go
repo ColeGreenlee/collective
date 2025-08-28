@@ -170,12 +170,12 @@ func (n *Node) connectToCoordinator() error {
 
 	n.coordinatorConn = conn
 	n.coordinatorClient = protocol.NewCoordinatorClient(conn)
-	
+
 	if n.authConfig != nil && n.authConfig.Enabled {
 		n.logger.Info("Connected to coordinator with TLS",
 			zap.String("coordinator", n.coordinatorAddress))
 	}
-	
+
 	return nil
 }
 
@@ -229,7 +229,11 @@ func (n *Node) StoreChunk(ctx context.Context, req *protocol.StoreChunkRequest) 
 	}
 
 	// Store to disk
-	chunkPath := filepath.Join(n.dataDir, string(chunkID))
+	chunksDir := filepath.Join(n.dataDir, "chunks")
+	if err := os.MkdirAll(chunksDir, 0755); err != nil {
+		return &protocol.StoreChunkResponse{Success: false}, fmt.Errorf("failed to create chunks directory: %w", err)
+	}
+	chunkPath := filepath.Join(chunksDir, string(chunkID))
 	if err := os.WriteFile(chunkPath, req.Data, 0644); err != nil {
 		return &protocol.StoreChunkResponse{Success: false}, fmt.Errorf("failed to write chunk to disk: %w", err)
 	}
@@ -297,7 +301,7 @@ func (n *Node) DeleteChunk(ctx context.Context, req *protocol.DeleteChunkRequest
 	}
 
 	// Delete from disk
-	chunkPath := filepath.Join(n.dataDir, string(chunkID))
+	chunkPath := filepath.Join(n.dataDir, "chunks", string(chunkID))
 	if err := os.Remove(chunkPath); err != nil && !os.IsNotExist(err) {
 		n.logger.Warn("Failed to delete chunk file", zap.String("chunk_id", string(chunkID)), zap.Error(err))
 	}

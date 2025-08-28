@@ -20,7 +20,7 @@ import (
 const (
 	// DefaultGRPCTimeout is the default timeout for gRPC operations
 	DefaultGRPCTimeout = 30 * time.Second
-	
+
 	// StreamingThreshold is the size above which we use streaming
 	StreamingThreshold = 4 * 1024 * 1024 // 4MB (just under gRPC limit)
 )
@@ -51,7 +51,7 @@ func ConnectToCoordinatorWithTimeout(coordinatorAddr string, timeout time.Durati
 func ConnectToCoordinatorWithAuth(coordinatorAddr string, timeout time.Duration, authConfig *auth.AuthConfig) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	
+
 	// If auth config is provided, use it directly
 	if authConfig != nil && authConfig.Enabled {
 		tlsBuilder, err := auth.NewTLSConfigBuilder(authConfig)
@@ -71,11 +71,11 @@ func ConnectToCoordinatorWithAuth(coordinatorAddr string, timeout time.Duration,
 				host = h
 			}
 			tlsConfig.ServerName = host
-			
+
 			return grpc.DialContext(ctx, coordinatorAddr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 		}
 	}
-	
+
 	// Try to load unified configuration for auth
 	clientConfig, err := config.LoadClientConfig()
 	if err == nil && len(clientConfig.Collectives) > 0 {
@@ -87,12 +87,12 @@ func ConnectToCoordinatorWithAuth(coordinatorAddr string, timeout time.Duration,
 			}
 			// Use federated connection configuration
 			if connectionConfig.CAPath != "" && connectionConfig.CertPath != "" && connectionConfig.KeyPath != "" {
-				return client.SecureDialWithCerts(ctx, connectionConfig.Coordinator, 
+				return client.SecureDialWithCerts(ctx, connectionConfig.Coordinator,
 					connectionConfig.CAPath, connectionConfig.CertPath, connectionConfig.KeyPath)
 			}
 		}
 	}
-	
+
 	// Fallback to insecure connection if no federated config is available
 	return grpc.DialContext(ctx, coordinatorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
@@ -106,9 +106,9 @@ func (cm *ConnectionManager) ConnectToNode(address string) (*grpc.ClientConn, er
 func (cm *ConnectionManager) ConnectToNodeWithTimeout(address string, timeout time.Duration) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	
+
 	var dialOpts []grpc.DialOption
-	
+
 	// Use TLS if configured
 	if cm.authConfig != nil && cm.authConfig.Enabled {
 		tlsBuilder, err := auth.NewTLSConfigBuilder(cm.authConfig)
@@ -128,7 +128,7 @@ func (cm *ConnectionManager) ConnectToNodeWithTimeout(address string, timeout ti
 				host = h
 			}
 			tlsConfig.ServerName = host
-			
+
 			dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 		}
 	} else {
@@ -141,19 +141,19 @@ func (cm *ConnectionManager) ConnectToNodeWithTimeout(address string, timeout ti
 // ConnectWithRetry creates a connection with retry logic
 func (cm *ConnectionManager) ConnectWithRetry(address string, maxRetries int, retryInterval time.Duration) (*grpc.ClientConn, error) {
 	var lastErr error
-	
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		conn, err := cm.ConnectToNode(address)
 		if err == nil {
 			return conn, nil
 		}
-		
+
 		lastErr = err
 		if attempt < maxRetries-1 {
 			time.Sleep(retryInterval)
 		}
 	}
-	
+
 	return nil, fmt.Errorf("failed to connect after %d attempts: %w", maxRetries, lastErr)
 }
 

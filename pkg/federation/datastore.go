@@ -44,8 +44,7 @@ type PlacementStrategy int
 
 const (
 	PlacementUnknown PlacementStrategy = iota
-	PlacementMedia    // Optimize for streaming
-	PlacementBackup   // Optimize for durability
-	PlacementHybrid   // Balance both
+	PlacementMedia                     // Optimize for streaming
+	PlacementBackup                    // Optimize for durability
+	PlacementHybrid                    // Balance both
 )
-

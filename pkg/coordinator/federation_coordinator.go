@@ -21,10 +21,10 @@ import (
 // FederationCoordinator extends the Coordinator with federation capabilities
 type FederationCoordinator struct {
 	*Coordinator
-	
+
 	// Federation components
-	trustStore    *federation.TrustStore
-	gossipService *federation.GossipService
+	trustStore       *federation.TrustStore
+	gossipService    *federation.GossipService
 	federationDomain string
 }
 
@@ -34,17 +34,17 @@ func NewFederationCoordinator(
 	federationDomain string,
 	trustStore *federation.TrustStore,
 ) (*FederationCoordinator, error) {
-	
+
 	// Get certificate paths from auth config
 	var certPath, keyPath string
 	if coordinator.authConfig != nil {
 		certPath = coordinator.authConfig.CertPath
 		keyPath = coordinator.authConfig.KeyPath
 	}
-	
+
 	// Create gossip service with trust store for secure connections
 	gossipService, err := federation.NewGossipService(
-		string(coordinator.memberID) + "." + federationDomain,
+		string(coordinator.memberID)+"."+federationDomain,
 		trustStore,
 		certPath,
 		keyPath,
@@ -52,21 +52,21 @@ func NewFederationCoordinator(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gossip service: %w", err)
 	}
-	
+
 	fc := &FederationCoordinator{
 		Coordinator:      coordinator,
 		trustStore:       trustStore,
 		gossipService:    gossipService,
 		federationDomain: federationDomain,
 	}
-	
+
 	// Set gossip callbacks
 	gossipService.SetCallbacks(
 		fc.handlePeerJoin,
 		fc.handlePeerLeave,
 		fc.handleDataStoreUpdate,
 	)
-	
+
 	return fc, nil
 }
 
@@ -76,7 +76,7 @@ func (fc *FederationCoordinator) StartFederation(bootstrapPeers []string) error 
 	if err := fc.gossipService.Start(); err != nil {
 		return fmt.Errorf("failed to start gossip: %w", err)
 	}
-	
+
 	// Add bootstrap peers
 	for _, peerAddr := range bootstrapPeers {
 		if err := fc.addBootstrapPeer(peerAddr); err != nil {
@@ -85,14 +85,14 @@ func (fc *FederationCoordinator) StartFederation(bootstrapPeers []string) error 
 				zap.Error(err))
 		}
 	}
-	
+
 	// Announce ourselves to the federation
 	fc.announceJoin()
-	
+
 	fc.logger.Info("Federation services started",
 		zap.String("domain", fc.federationDomain),
 		zap.Int("bootstrap_peers", len(bootstrapPeers)))
-	
+
 	return nil
 }
 
@@ -100,10 +100,10 @@ func (fc *FederationCoordinator) StartFederation(bootstrapPeers []string) error 
 func (fc *FederationCoordinator) StopFederation() {
 	// Announce leave
 	fc.announceLeave()
-	
+
 	// Stop gossip
 	fc.gossipService.Stop()
-	
+
 	fc.logger.Info("Federation services stopped")
 }
 
@@ -113,14 +113,14 @@ func (fc *FederationCoordinator) addBootstrapPeer(peerAddrStr string) error {
 	if err != nil {
 		return fmt.Errorf("invalid peer address: %w", err)
 	}
-	
+
 	// Extract endpoint from address (simplified - in production would do DNS lookup)
 	endpoint := &federation.PeerEndpoint{
 		Domain:    peerAddr.Domain,
 		DirectIPs: []string{peerAddr.Domain + ":8001"}, // Default coordinator port
 		LastSeen:  time.Now(),
 	}
-	
+
 	return fc.gossipService.AddPeer(peerAddr, []*federation.PeerEndpoint{endpoint})
 }
 
@@ -128,7 +128,7 @@ func (fc *FederationCoordinator) addBootstrapPeer(peerAddrStr string) error {
 func (fc *FederationCoordinator) announceJoin() {
 	// Get local endpoints
 	endpoints := fc.getLocalEndpoints()
-	
+
 	// Create join message
 	joinMsg := &protocol.GossipMessage{
 		Type:          protocol.GossipType_GOSSIP_JOIN,
@@ -143,9 +143,9 @@ func (fc *FederationCoordinator) announceJoin() {
 			},
 		},
 	}
-	
+
 	fc.gossipService.Broadcast(joinMsg)
-	
+
 	fc.logger.Info("Announced join to federation")
 }
 
@@ -163,16 +163,16 @@ func (fc *FederationCoordinator) announceLeave() {
 			},
 		},
 	}
-	
+
 	fc.gossipService.Broadcast(leaveMsg)
-	
+
 	fc.logger.Info("Announced leave to federation")
 }
 
 // getLocalEndpoints returns the coordinator's network endpoints
 func (fc *FederationCoordinator) getLocalEndpoints() []*protocol.PeerEndpoint {
 	endpoints := []*protocol.PeerEndpoint{}
-	
+
 	// Get all network interfaces
 	if fc.address != "" {
 		endpoint := &protocol.PeerEndpoint{
@@ -181,7 +181,7 @@ func (fc *FederationCoordinator) getLocalEndpoints() []*protocol.PeerEndpoint {
 		}
 		endpoints = append(endpoints, endpoint)
 	}
-	
+
 	return endpoints
 }
 
@@ -189,9 +189,9 @@ func (fc *FederationCoordinator) getLocalEndpoints() []*protocol.PeerEndpoint {
 func (fc *FederationCoordinator) getDataStoreInfo() []*protocol.DataStoreInfo {
 	fc.directoryMutex.RLock()
 	defer fc.directoryMutex.RUnlock()
-	
+
 	datastores := []*protocol.DataStoreInfo{}
-	
+
 	// For now, just report the root directory as a datastore
 	rootInfo := &protocol.DataStoreInfo{
 		Path:         "/",
@@ -200,9 +200,9 @@ func (fc *FederationCoordinator) getDataStoreInfo() []*protocol.DataStoreInfo {
 		Strategy:     protocol.PlacementStrategy_PLACEMENT_HYBRID,
 		Metadata:     map[string]string{"type": "root"},
 	}
-	
+
 	datastores = append(datastores, rootInfo)
-	
+
 	return datastores
 }
 
@@ -212,28 +212,28 @@ func (fc *FederationCoordinator) handlePeerJoin(peer *federation.PeerState) {
 	fc.logger.Info("Federation peer joined",
 		zap.String("peer", peer.Address.String()),
 		zap.Int("endpoints", len(peer.Endpoints)))
-	
+
 	// Convert to internal Peer type
 	fc.peerMutex.Lock()
 	defer fc.peerMutex.Unlock()
-	
+
 	internalPeer := &Peer{
 		MemberID:  types.MemberID(peer.Address.Domain),
 		Address:   peer.Address.String(),
 		LastSeen:  peer.LastSeen,
 		IsHealthy: true,
 	}
-	
+
 	fc.peers[internalPeer.MemberID] = internalPeer
 }
 
 func (fc *FederationCoordinator) handlePeerLeave(domain string) {
 	fc.logger.Info("Federation peer left",
 		zap.String("domain", domain))
-	
+
 	fc.peerMutex.Lock()
 	defer fc.peerMutex.Unlock()
-	
+
 	delete(fc.peers, types.MemberID(domain))
 }
 
@@ -241,14 +241,14 @@ func (fc *FederationCoordinator) handleDataStoreUpdate(ds *federation.DataStoreI
 	fc.logger.Debug("DataStore update received",
 		zap.String("path", ds.Path),
 		zap.String("owner", ds.OwnerAddress))
-	
+
 	// TODO: Implement DataStore synchronization
 }
 
 // GetFederationStatus returns the current federation status
 func (fc *FederationCoordinator) GetFederationStatus() map[string]interface{} {
 	healthyPeers := fc.gossipService.GetHealthyPeers()
-	
+
 	peerInfo := make([]map[string]interface{}, len(healthyPeers))
 	for i, peer := range healthyPeers {
 		peerInfo[i] = map[string]interface{}{
@@ -259,7 +259,7 @@ func (fc *FederationCoordinator) GetFederationStatus() map[string]interface{} {
 			"datastores": len(peer.DataStores),
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"federation_domain": fc.federationDomain,
 		"local_member":      fc.memberID,
@@ -297,15 +297,15 @@ func (fc *FederationCoordinator) GetFederationCA(ctx context.Context, req *proto
 
 	return &protocol.GetFederationCAResponse{
 		Success:          true,
-		CaCertificate:   string(certPEM),
+		CaCertificate:    string(certPEM),
 		FederationDomain: fc.federationDomain,
-		Message:         "Federation CA retrieved successfully",
+		Message:          "Federation CA retrieved successfully",
 	}, nil
 }
 
 // RequestClientCertificate processes a client certificate signing request
 func (fc *FederationCoordinator) RequestClientCertificate(ctx context.Context, req *protocol.RequestClientCertificateRequest) (*protocol.RequestClientCertificateResponse, error) {
-	fc.logger.Debug("RequestClientCertificate request", 
+	fc.logger.Debug("RequestClientCertificate request",
 		zap.String("client_id", req.ClientId),
 		zap.String("invite_code", req.InviteCode))
 
@@ -334,7 +334,7 @@ func (fc *FederationCoordinator) RequestClientCertificate(ctx context.Context, r
 			Message: "Invalid CSR format",
 		}, nil
 	}
-	
+
 	csr, err := x509.ParseCertificateRequest(csrBlock.Bytes)
 	if err != nil {
 		return &protocol.RequestClientCertificateResponse{
@@ -342,7 +342,7 @@ func (fc *FederationCoordinator) RequestClientCertificate(ctx context.Context, r
 			Message: fmt.Sprintf("Failed to parse CSR: %v", err),
 		}, nil
 	}
-	
+
 	// Verify CSR signature
 	if err := csr.CheckSignature(); err != nil {
 		return &protocol.RequestClientCertificateResponse{
@@ -350,21 +350,21 @@ func (fc *FederationCoordinator) RequestClientCertificate(ctx context.Context, r
 			Message: fmt.Sprintf("CSR signature verification failed: %v", err),
 		}, nil
 	}
-	
+
 	// Get certificate paths from auth config
 	var certPath, keyPath string
 	if fc.authConfig != nil {
 		certPath = fc.authConfig.CertPath
 		keyPath = fc.authConfig.KeyPath
 	}
-	
+
 	if certPath == "" || keyPath == "" {
 		return &protocol.RequestClientCertificateResponse{
 			Success: false,
 			Message: "Coordinator certificate configuration missing",
 		}, nil
 	}
-	
+
 	// Load the CA certificate and private key
 	certMgr := auth.NewFederationCertManager("")
 	if err := certMgr.LoadCAFromFiles(certPath, keyPath); err != nil {
@@ -374,7 +374,7 @@ func (fc *FederationCoordinator) RequestClientCertificate(ctx context.Context, r
 			Message: "Failed to load CA certificates for signing",
 		}, nil
 	}
-	
+
 	// Create client certificate template
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
@@ -382,13 +382,13 @@ func (fc *FederationCoordinator) RequestClientCertificate(ctx context.Context, r
 			CommonName:   req.ClientId,
 			Organization: []string{"Collective Storage Federation"},
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(24 * time.Hour * 365), // 1 year validity
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		DNSNames:     []string{req.ClientId},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(24 * time.Hour * 365), // 1 year validity
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		DNSNames:    []string{req.ClientId},
 	}
-	
+
 	// Sign the certificate with the CA
 	certDER, err := x509.CreateCertificate(rand.Reader, template, certMgr.GetCACert(), csr.PublicKey, certMgr.GetCAKey())
 	if err != nil {
@@ -398,21 +398,20 @@ func (fc *FederationCoordinator) RequestClientCertificate(ctx context.Context, r
 			Message: fmt.Sprintf("Certificate signing failed: %v", err),
 		}, nil
 	}
-	
+
 	// Convert certificate to PEM format
 	certPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certDER,
 	})
-	
-	fc.logger.Info("Successfully signed client certificate", 
+
+	fc.logger.Info("Successfully signed client certificate",
 		zap.String("client_id", req.ClientId),
 		zap.String("invite_code", req.InviteCode))
-	
+
 	return &protocol.RequestClientCertificateResponse{
-		Success:         true,
+		Success:           true,
 		ClientCertificate: string(certPEM),
-		Message:         "Client certificate signed successfully",
+		Message:           "Client certificate signed successfully",
 	}, nil
 }
-

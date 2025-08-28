@@ -29,19 +29,19 @@ type BootstrapCoordinator struct {
 // GetFederationCA returns the CA certificate for initial trust establishment
 func (b *BootstrapCoordinator) GetFederationCA(ctx context.Context, req *protocol.GetFederationCARequest) (*protocol.GetFederationCAResponse, error) {
 	b.logger.Info("GetFederationCA request received")
-	
+
 	// This is allowed without authentication - it's public information
 	if b.coordinator.authConfig == nil || b.coordinator.authConfig.CAPath == "" {
 		return nil, status.Error(codes.FailedPrecondition, "TLS not configured")
 	}
-	
+
 	// Read CA certificate
 	caData, err := readFile(b.coordinator.authConfig.CAPath)
 	if err != nil {
 		b.logger.Error("Failed to read CA certificate", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to read CA certificate")
 	}
-	
+
 	return &protocol.GetFederationCAResponse{
 		Success:          true,
 		CaCertificate:    string(caData),
@@ -55,7 +55,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 	b.logger.Info("RequestClientCertificate request received",
 		zap.String("client_id", req.ClientId),
 		zap.String("invite_code", req.InviteCode))
-	
+
 	// Validate invite code using the invite manager
 	if b.coordinator.inviteManager == nil {
 		b.logger.Error("Invite manager not initialized")
@@ -64,7 +64,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Invite system not available",
 		}, nil
 	}
-	
+
 	// Parse the client ID into a federated address
 	federatedAddr, err := federation.ParseAddress(req.ClientId)
 	if err != nil {
@@ -74,7 +74,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Domain:    string(b.coordinator.memberID) + ".collective.local",
 		}
 	}
-	
+
 	// Redeem the invite
 	invite, err := b.coordinator.inviteManager.RedeemInvite(req.InviteCode, federatedAddr)
 	if err != nil {
@@ -86,12 +86,12 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: fmt.Sprintf("Invalid invite code: %v", err),
 		}, nil
 	}
-	
+
 	b.logger.Info("Invite code validated",
 		zap.String("client_id", req.ClientId),
 		zap.String("invite_code", req.InviteCode),
 		zap.String("inviter", invite.Inviter.String()))
-	
+
 	// Parse the CSR
 	csrBlock, _ := pem.Decode([]byte(req.Csr))
 	if csrBlock == nil || csrBlock.Type != "CERTIFICATE REQUEST" {
@@ -100,7 +100,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Invalid CSR format",
 		}, nil
 	}
-	
+
 	csr, err := x509.ParseCertificateRequest(csrBlock.Bytes)
 	if err != nil {
 		b.logger.Error("Failed to parse CSR", zap.Error(err))
@@ -109,7 +109,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Failed to parse CSR",
 		}, nil
 	}
-	
+
 	// Verify the CSR signature
 	if err := csr.CheckSignature(); err != nil {
 		return &protocol.RequestClientCertificateResponse{
@@ -117,13 +117,13 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Invalid CSR signature",
 		}, nil
 	}
-	
+
 	// Load the actual CA certificate and key (not the coordinator's cert)
 	// The CA files are at /collective/certs/ca/[member]-ca.crt and .key
 	memberID := string(b.coordinator.memberID)
 	caCertPath := fmt.Sprintf("/collective/certs/ca/%s-ca.crt", memberID)
 	caKeyPath := fmt.Sprintf("/collective/certs/ca/%s-ca.key", memberID)
-	
+
 	caCertPEM, err := os.ReadFile(caCertPath)
 	if err != nil {
 		b.logger.Error("Failed to read CA cert", zap.Error(err))
@@ -132,7 +132,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Internal error: failed to load CA",
 		}, nil
 	}
-	
+
 	caKeyPEM, err := os.ReadFile(caKeyPath)
 	if err != nil {
 		b.logger.Error("Failed to read CA key", zap.Error(err))
@@ -141,7 +141,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Internal error: failed to load CA key",
 		}, nil
 	}
-	
+
 	// Parse CA cert
 	caCertBlock, _ := pem.Decode(caCertPEM)
 	if caCertBlock == nil {
@@ -150,7 +150,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Internal error: invalid CA cert",
 		}, nil
 	}
-	
+
 	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
 	if err != nil {
 		return &protocol.RequestClientCertificateResponse{
@@ -158,7 +158,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Internal error: failed to parse CA cert",
 		}, nil
 	}
-	
+
 	// Parse CA key
 	caKeyBlock, _ := pem.Decode(caKeyPEM)
 	if caKeyBlock == nil {
@@ -167,7 +167,7 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Internal error: invalid CA key",
 		}, nil
 	}
-	
+
 	caKey, err := x509.ParsePKCS8PrivateKey(caKeyBlock.Bytes)
 	if err != nil {
 		// Try parsing as PKCS1 RSA key
@@ -184,22 +184,22 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			}
 		}
 	}
-	
+
 	// Create the certificate template
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
-			Organization:  []string{"Collective Federation"},
-			Country:       []string{"US"},
-			CommonName:    req.ClientId,
+			Organization: []string{"Collective Federation"},
+			Country:      []string{"US"},
+			CommonName:   req.ClientId,
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour), // 1 year validity
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		IsCA:         false,
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(365 * 24 * time.Hour), // 1 year validity
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		IsCA:        false,
 	}
-	
+
 	// Sign the certificate
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, caCert, csr.PublicKey, caKey)
 	if err != nil {
@@ -209,13 +209,13 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 			Message: "Failed to create certificate",
 		}, nil
 	}
-	
+
 	// Encode certificate to PEM
 	certPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certDER,
 	})
-	
+
 	// Read the actual CA certificate (not coordinator cert)
 	actualCAPath := b.coordinator.authConfig.CAPath
 	actualCAPEM, err := os.ReadFile(actualCAPath)
@@ -223,11 +223,11 @@ func (b *BootstrapCoordinator) RequestClientCertificate(ctx context.Context, req
 		b.logger.Error("Failed to read actual CA", zap.Error(err))
 		actualCAPEM = caCertPEM // Fallback to coordinator cert
 	}
-	
+
 	b.logger.Info("Successfully signed client certificate",
 		zap.String("client_id", req.ClientId),
 		zap.String("serial", template.SerialNumber.String()))
-	
+
 	return &protocol.RequestClientCertificateResponse{
 		Success:           true,
 		Message:           "Certificate issued successfully",

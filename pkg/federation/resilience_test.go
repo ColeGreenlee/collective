@@ -47,15 +47,15 @@ func TestResilientClient_RetryWithBackoff(t *testing.T) {
 		connections: make(map[string]*PooledConnection),
 		logger:      logger,
 	}
-	
+
 	client := NewResilientClient(pool, nil, logger)
 	client.maxRetries = 3
 	client.baseDelay = 10 * time.Millisecond
 	client.maxDelay = 100 * time.Millisecond
-	
+
 	// Track retry attempts
 	attemptCount := int32(0)
-	
+
 	// Create a function that fails first 2 times, then succeeds
 	fn := func(ctx context.Context, conn *grpc.ClientConn) error {
 		attempt := atomic.AddInt32(&attemptCount, 1)
@@ -65,26 +65,26 @@ func TestResilientClient_RetryWithBackoff(t *testing.T) {
 		}
 		return nil // Success on third attempt
 	}
-	
+
 	ctx := context.Background()
 	start := time.Now()
-	
+
 	// Mock connection
 	conn := &grpc.ClientConn{}
 	err := client.retryOperation(ctx, conn, "test-domain", "test-op", fn, 0)
-	
+
 	elapsed := time.Since(start)
-	
+
 	// Should succeed after retries
 	if err != nil {
 		t.Errorf("Expected success after retries, got error: %v", err)
 	}
-	
+
 	// Should have attempted 3 times
 	if attemptCount != 3 {
 		t.Errorf("Expected 3 attempts, got %d", attemptCount)
 	}
-	
+
 	// Should have taken at least baseDelay * 2.5 due to backoff (with some tolerance)
 	// (no delay after last attempt)
 	minExpectedDelay := time.Duration(float64(client.baseDelay) * 2.5) // Approximate due to exponential backoff and jitter
@@ -100,26 +100,26 @@ func TestResilientClient_NonRetryableError(t *testing.T) {
 		connections: make(map[string]*PooledConnection),
 		logger:      logger,
 	}
-	
+
 	client := NewResilientClient(pool, nil, logger)
-	
+
 	attemptCount := int32(0)
-	
+
 	// Return non-retryable error
 	fn := func(ctx context.Context, conn *grpc.ClientConn) error {
 		atomic.AddInt32(&attemptCount, 1)
 		return status.Error(codes.InvalidArgument, "invalid request")
 	}
-	
+
 	ctx := context.Background()
 	conn := &grpc.ClientConn{}
 	err := client.retryOperation(ctx, conn, "test-domain", "test-op", fn, 0)
-	
+
 	// Should fail immediately
 	if err == nil {
 		t.Error("Expected error for non-retryable error")
 	}
-	
+
 	// Should only attempt once
 	if attemptCount != 1 {
 		t.Errorf("Expected 1 attempt for non-retryable error, got %d", attemptCount)
@@ -130,9 +130,9 @@ func TestResilientClient_NonRetryableError(t *testing.T) {
 func TestConnectionPool_CircuitBreaker(t *testing.T) {
 	logger := zap.NewNop()
 	trustStore := &TrustStore{}
-	pool := NewConnectionPool(trustStore, logger)
+	pool := NewConnectionPool(trustStore, "", "", logger)
 	defer pool.Close()
-	
+
 	// Create a pooled connection (conn can be nil for this test)
 	pooled := &PooledConnection{
 		conn:         nil, // OK for circuit breaker test
@@ -142,21 +142,21 @@ func TestConnectionPool_CircuitBreaker(t *testing.T) {
 		isHealthy:    true,
 		circuitState: CircuitClosed,
 	}
-	
+
 	pool.mu.Lock()
 	pool.connections["test-domain"] = pooled
 	pool.mu.Unlock()
-	
+
 	// Mark unhealthy multiple times to trigger circuit breaker
 	pool.MarkUnhealthy("test-domain")
 	pool.MarkUnhealthy("test-domain")
 	pool.MarkUnhealthy("test-domain")
-	
+
 	// Circuit should be open
 	if pooled.circuitState != CircuitOpen {
 		t.Error("Circuit breaker should be open after 3 failures")
 	}
-	
+
 	// Connection should not be usable
 	if pooled.isUsable() {
 		t.Error("Connection should not be usable when circuit is open")
@@ -167,10 +167,10 @@ func TestConnectionPool_CircuitBreaker(t *testing.T) {
 func TestConnectionPool_Maintenance(t *testing.T) {
 	logger := zap.NewNop()
 	trustStore := &TrustStore{}
-	pool := NewConnectionPool(trustStore, logger)
+	pool := NewConnectionPool(trustStore, "", "", logger)
 	pool.idleTimeout = 100 * time.Millisecond
 	defer pool.Close()
-	
+
 	// Create an idle connection
 	pooled := &PooledConnection{
 		conn:      nil, // OK for maintenance test
@@ -179,19 +179,19 @@ func TestConnectionPool_Maintenance(t *testing.T) {
 		lastUsed:  time.Now().Add(-1 * time.Hour), // Very old
 		isHealthy: true,
 	}
-	
+
 	pool.mu.Lock()
 	pool.connections["test-domain"] = pooled
 	pool.mu.Unlock()
-	
+
 	// Trigger maintenance
 	pool.performMaintenance()
-	
+
 	// Connection should be removed
 	pool.mu.RLock()
 	_, exists := pool.connections["test-domain"]
 	pool.mu.RUnlock()
-	
+
 	if exists {
 		t.Error("Idle connection should have been removed")
 	}
@@ -202,10 +202,10 @@ func TestConnectionManager_Failover(t *testing.T) {
 	logger := zap.NewNop()
 	trustStore := &TrustStore{}
 	gossip, _ := NewGossipService("test.local", nil, "", "")
-	
+
 	manager := NewConnectionManager("test.local", trustStore, gossip, logger)
 	defer manager.Close()
-	
+
 	// Add multiple nodes with different scores
 	manager.nodeScores["node1"] = &NodeScore{
 		NodeID:           "node1",
@@ -214,7 +214,7 @@ func TestConnectionManager_Failover(t *testing.T) {
 		IsHealthy:        true,
 		ConsecutiveFails: 0,
 	}
-	
+
 	manager.nodeScores["node2"] = &NodeScore{
 		NodeID:           "node2",
 		Domain:           "remote.local",
@@ -222,7 +222,7 @@ func TestConnectionManager_Failover(t *testing.T) {
 		IsHealthy:        true,
 		ConsecutiveFails: 0,
 	}
-	
+
 	manager.nodeScores["node3"] = &NodeScore{
 		NodeID:           "node3",
 		Domain:           "remote.local",
@@ -230,17 +230,17 @@ func TestConnectionManager_Failover(t *testing.T) {
 		IsHealthy:        true,
 		ConsecutiveFails: 0,
 	}
-	
+
 	// Get healthy nodes
 	nodes := manager.getHealthyNodesForDomain("remote.local")
-	
+
 	if len(nodes) != 3 {
 		t.Errorf("Expected 3 healthy nodes, got %d", len(nodes))
 	}
-	
+
 	// Sort by score
 	manager.sortNodesByScore(nodes)
-	
+
 	// Should be ordered by success rate
 	if nodes[0].NodeID != "node1" {
 		t.Errorf("Expected node1 first, got %s", nodes[0].NodeID)
@@ -258,33 +258,33 @@ func TestConnectionManager_NodeScoring(t *testing.T) {
 	logger := zap.NewNop()
 	trustStore := &TrustStore{}
 	gossip, _ := NewGossipService("test.local", nil, "", "")
-	
+
 	manager := NewConnectionManager("test.local", trustStore, gossip, logger)
 	defer manager.Close()
-	
+
 	// Record successes and failures
 	nodeID := "test-node"
-	
+
 	// Start with no score
 	manager.recordSuccess(nodeID)
-	
+
 	score := manager.nodeScores[nodeID]
 	if score.SuccessRate != 1.0 {
 		t.Errorf("Expected success rate 1.0 after first success, got %f", score.SuccessRate)
 	}
-	
+
 	// Record failure
 	manager.recordFailure(nodeID)
-	
+
 	// Success rate should decrease
 	if score.SuccessRate >= 1.0 {
 		t.Error("Success rate should decrease after failure")
 	}
-	
+
 	// Record multiple failures
 	manager.recordFailure(nodeID)
 	manager.recordFailure(nodeID)
-	
+
 	// Should be marked unhealthy
 	if score.IsHealthy {
 		t.Error("Node should be unhealthy after 3 consecutive failures")
@@ -296,24 +296,24 @@ func TestConnectionManager_LatencyTracking(t *testing.T) {
 	logger := zap.NewNop()
 	trustStore := &TrustStore{}
 	gossip, _ := NewGossipService("test.local", nil, "", "")
-	
+
 	manager := NewConnectionManager("test.local", trustStore, gossip, logger)
 	defer manager.Close()
-	
+
 	nodeID := "test-node"
-	
+
 	// Update latency multiple times
 	manager.UpdateNodeLatency(nodeID, 10*time.Millisecond)
 	manager.UpdateNodeLatency(nodeID, 20*time.Millisecond)
 	manager.UpdateNodeLatency(nodeID, 30*time.Millisecond)
-	
+
 	score := manager.nodeScores[nodeID]
-	
+
 	// Latency should be averaged
 	if score.Latency == 0 {
 		t.Error("Latency should be tracked")
 	}
-	
+
 	// Should be between min and max due to exponential moving average
 	if score.Latency < 10*time.Millisecond || score.Latency > 30*time.Millisecond {
 		t.Errorf("Latency %v outside expected range", score.Latency)
@@ -327,19 +327,19 @@ func TestResilientClient_BackoffCalculation(t *testing.T) {
 		maxDelay:     5 * time.Second,
 		jitterFactor: 0.2,
 	}
-	
+
 	// Test exponential growth
 	delays := []time.Duration{}
 	for i := 0; i < 5; i++ {
 		delay := client.calculateBackoff(i)
 		delays = append(delays, delay)
-		
+
 		// Should not exceed max delay
 		if delay > client.maxDelay {
 			t.Errorf("Delay %v exceeds max delay %v", delay, client.maxDelay)
 		}
 	}
-	
+
 	// Each delay should be roughly double the previous (minus jitter)
 	for i := 1; i < len(delays)-1; i++ {
 		ratio := float64(delays[i]) / float64(delays[i-1])
@@ -358,10 +358,10 @@ func TestConnectionManager_Statistics(t *testing.T) {
 	logger := zap.NewNop()
 	trustStore := &TrustStore{}
 	gossip, _ := NewGossipService("test.local", nil, "", "")
-	
+
 	manager := NewConnectionManager("test.local", trustStore, gossip, logger)
 	defer manager.Close()
-	
+
 	// Add some nodes with different states
 	manager.nodeScores["healthy1"] = &NodeScore{
 		IsHealthy:   true,
@@ -375,9 +375,9 @@ func TestConnectionManager_Statistics(t *testing.T) {
 		IsHealthy:   false,
 		SuccessRate: 0.2,
 	}
-	
+
 	stats := manager.GetStatistics()
-	
+
 	// Check statistics
 	if stats["total_nodes"] != 3 {
 		t.Errorf("Expected 3 total nodes, got %v", stats["total_nodes"])
@@ -388,7 +388,7 @@ func TestConnectionManager_Statistics(t *testing.T) {
 	if stats["unhealthy_nodes"] != 1 {
 		t.Errorf("Expected 1 unhealthy node, got %v", stats["unhealthy_nodes"])
 	}
-	
+
 	avgRate := stats["avg_success_rate"].(float64)
 	expectedAvg := (0.9 + 0.8 + 0.2) / 3
 	if avgRate < expectedAvg-0.01 || avgRate > expectedAvg+0.01 {

@@ -80,7 +80,7 @@ func runFederationCAInit(cmd *cobra.Command, args []string) error {
 
 	// Create enhanced cert manager for federation
 	certMgr := auth.NewFederationCertManager(outputDir)
-	
+
 	// Generate root CA with federation extensions
 	validity := time.Duration(validityYears) * 365 * 24 * time.Hour
 	if err := certMgr.GenerateFederationRootCA(fedAddr.Domain, validity); err != nil {
@@ -92,7 +92,7 @@ func runFederationCAInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  CA Certificate: %s/ca.crt\n", outputDir)
 	fmt.Printf("  CA Private Key: %s/ca.key\n", outputDir)
 	fmt.Printf("  Validity: %d years\n", validityYears)
-	
+
 	return nil
 }
 
@@ -140,7 +140,7 @@ func runFederationCASignMember(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Member Domain: %s\n", memberDomain)
 	fmt.Printf("  Certificate: %s\n", outputPath)
 	fmt.Printf("  Validity: %d years\n", validityYears)
-	
+
 	// Verify the certificate chain
 	fmt.Printf("\nVerifying certificate chain...\n")
 	if err := certMgr.VerifyChain(outputPath); err != nil {

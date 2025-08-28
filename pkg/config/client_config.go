@@ -18,9 +18,7 @@ type ClientConfig struct {
 	UserIdentity *UserIdentity    `json:"user_identity,omitempty"`
 	Collectives  []CollectiveInfo `json:"collectives"`
 	Defaults     DefaultSettings  `json:"defaults"`
-	
 }
-
 
 // DefaultSettings represents default settings for the client
 type DefaultSettings struct {
@@ -41,16 +39,16 @@ type UserIdentity struct {
 
 // CollectiveInfo represents connection info for a specific collective
 type CollectiveInfo struct {
-	CollectiveID        string            `json:"collective_id"`        // e.g., "home.alice"
-	CoordinatorAddress  string            `json:"coordinator_address"`  // e.g., "alice.collective:8001"
-	MemberID            string            `json:"member_id"`            // Local member ID in this collective
-	Role                string            `json:"role"`                 // "owner", "member", "guest"
-	Certificates        CertificateConfig `json:"certificates"`
-	Permissions         []string          `json:"permissions,omitempty"` // Optional permission restrictions
-	AutoDiscover        bool              `json:"auto_discover"`         // Whether to auto-discover this collective
-	TrustLevel          string            `json:"trust_level"`           // "high", "medium", "low"
-	Description         string            `json:"description,omitempty"`
-	Tags                []string          `json:"tags,omitempty"`
+	CollectiveID       string            `json:"collective_id"`       // e.g., "home.alice"
+	CoordinatorAddress string            `json:"coordinator_address"` // e.g., "alice.collective:8001"
+	MemberID           string            `json:"member_id"`           // Local member ID in this collective
+	Role               string            `json:"role"`                // "owner", "member", "guest"
+	Certificates       CertificateConfig `json:"certificates"`
+	Permissions        []string          `json:"permissions,omitempty"` // Optional permission restrictions
+	AutoDiscover       bool              `json:"auto_discover"`         // Whether to auto-discover this collective
+	TrustLevel         string            `json:"trust_level"`           // "high", "medium", "low"
+	Description        string            `json:"description,omitempty"`
+	Tags               []string          `json:"tags,omitempty"`
 }
 
 // CertificateConfig represents certificate paths for a collective
@@ -125,7 +123,6 @@ func LoadClientConfig() (*ClientConfig, error) {
 		config.Collectives[i].Certificates.ClientKey = expandPath(config.Collectives[i].Certificates.ClientKey)
 	}
 
-
 	return &config, nil
 }
 
@@ -152,8 +149,6 @@ func (c *ClientConfig) Save() error {
 
 	return nil
 }
-
-
 
 // expandPath expands ~ and environment variables in paths
 func expandPath(path string) string {
@@ -197,7 +192,7 @@ func (c *ClientConfig) GetCollectiveByID(collectiveID string) (*CollectiveInfo, 
 func (c *ClientConfig) GetCollectiveByCoordinator(coordinatorAddr string) (*CollectiveInfo, error) {
 	// Normalize address for comparison
 	normalizedAddr := normalizeAddress(coordinatorAddr)
-	
+
 	for _, collective := range c.Collectives {
 		if normalizeAddress(collective.CoordinatorAddress) == normalizedAddr {
 			return &collective, nil
@@ -211,11 +206,11 @@ func (c *ClientConfig) GetPreferredCollective() (*CollectiveInfo, error) {
 	if c.Defaults.PreferredCollective != "" {
 		return c.GetCollectiveByID(c.Defaults.PreferredCollective)
 	}
-	
+
 	if len(c.Collectives) == 0 {
 		return nil, fmt.Errorf("no collectives configured")
 	}
-	
+
 	return &c.Collectives[0], nil
 }
 
@@ -305,22 +300,20 @@ func (c *ClientConfig) ResolveConnection(coordinatorAddr string) (*ConnectionCon
 	}, nil
 }
 
-
-
 // normalizeAddress normalizes a coordinator address for comparison
 func normalizeAddress(addr string) string {
 	// Add default port if missing
 	if !strings.Contains(addr, ":") {
 		addr = addr + ":8001"
 	}
-	
+
 	// Resolve hostname to handle localhost, 127.0.0.1, etc.
 	if host, port, err := net.SplitHostPort(addr); err == nil {
 		if host == "localhost" || host == "127.0.0.1" || host == "::1" {
 			return fmt.Sprintf("localhost:%s", port)
 		}
 	}
-	
+
 	return addr
 }
 

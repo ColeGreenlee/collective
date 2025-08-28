@@ -72,7 +72,7 @@ func LoadFromEnv() *Config {
 				if peer == "" {
 					continue
 				}
-				
+
 				// Expected format: memberID@address:port or memberID:address:port
 				var memberID, address string
 				if strings.Contains(peer, "@") {
@@ -89,7 +89,7 @@ func LoadFromEnv() *Config {
 						address = parts[1]
 					}
 				}
-				
+
 				if memberID != "" && address != "" {
 					cfg.Coordinator.BootstrapPeers = append(cfg.Coordinator.BootstrapPeers, PeerConfig{
 						MemberID: memberID,

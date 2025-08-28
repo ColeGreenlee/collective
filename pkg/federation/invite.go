@@ -19,10 +19,10 @@ type InviteCode struct {
 	Used        int
 	CreatedAt   time.Time
 	UsedBy      []*FederatedAddress // Track who used the invite
-	
+
 	// Federation configuration for automatic client setup
 	CoordinatorAddress string // e.g., "localhost:8001"
-	FederationDomain   string // e.g., "homelab.collective"  
+	FederationDomain   string // e.g., "homelab.collective"
 	FederationRootCA   []byte // PEM-encoded federation root CA
 	Description        string // Optional description
 }
@@ -37,7 +37,7 @@ type DataStoreGrant struct {
 type InviteManager struct {
 	mu      sync.RWMutex
 	invites map[string]*InviteCode
-	
+
 	// Cleanup settings
 	cleanupInterval time.Duration
 	stopCleanup     chan struct{}
@@ -50,10 +50,10 @@ func NewInviteManager() *InviteManager {
 		cleanupInterval: 1 * time.Hour,
 		stopCleanup:     make(chan struct{}),
 	}
-	
+
 	// Start cleanup goroutine
 	go im.cleanupExpired()
-	
+
 	return im
 }
 
@@ -61,13 +61,13 @@ func NewInviteManager() *InviteManager {
 func (im *InviteManager) GenerateInvite(inviter *FederatedAddress, grants []DataStoreGrant, validity time.Duration, maxUses int) (*InviteCode, error) {
 	im.mu.Lock()
 	defer im.mu.Unlock()
-	
+
 	// Generate random code
 	code, err := generateInviteCode()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate invite code: %w", err)
 	}
-	
+
 	// Create invite
 	invite := &InviteCode{
 		Code:        code,
@@ -79,9 +79,9 @@ func (im *InviteManager) GenerateInvite(inviter *FederatedAddress, grants []Data
 		CreatedAt:   time.Now(),
 		UsedBy:      make([]*FederatedAddress, 0),
 	}
-	
+
 	im.invites[code] = invite
-	
+
 	return invite, nil
 }
 
@@ -89,39 +89,39 @@ func (im *InviteManager) GenerateInvite(inviter *FederatedAddress, grants []Data
 func (im *InviteManager) RedeemInvite(code string, newMember *FederatedAddress) (*InviteCode, error) {
 	im.mu.Lock()
 	defer im.mu.Unlock()
-	
+
 	invite, exists := im.invites[code]
 	if !exists {
 		return nil, fmt.Errorf("invalid invite code")
 	}
-	
+
 	// Check expiration
 	if time.Now().After(invite.ExpiresAt) {
 		delete(im.invites, code)
 		return nil, fmt.Errorf("invite code has expired")
 	}
-	
+
 	// Check usage limit
 	if invite.MaxUses > 0 && invite.Used >= invite.MaxUses {
 		return nil, fmt.Errorf("invite code has reached usage limit")
 	}
-	
+
 	// Check if member already used this invite
 	for _, member := range invite.UsedBy {
 		if member.Equal(newMember) {
 			return nil, fmt.Errorf("invite already used by this member")
 		}
 	}
-	
+
 	// Mark as used
 	invite.Used++
 	invite.UsedBy = append(invite.UsedBy, newMember)
-	
+
 	// Remove if fully used
 	if invite.MaxUses > 0 && invite.Used >= invite.MaxUses {
 		delete(im.invites, code)
 	}
-	
+
 	// Return a copy to prevent external modification
 	inviteCopy := *invite
 	return &inviteCopy, nil
@@ -131,22 +131,22 @@ func (im *InviteManager) RedeemInvite(code string, newMember *FederatedAddress) 
 func (im *InviteManager) ValidateInvite(code string) (*InviteCode, error) {
 	im.mu.RLock()
 	defer im.mu.RUnlock()
-	
+
 	invite, exists := im.invites[code]
 	if !exists {
 		return nil, fmt.Errorf("invalid invite code")
 	}
-	
+
 	// Check expiration
 	if time.Now().After(invite.ExpiresAt) {
 		return nil, fmt.Errorf("invite code has expired")
 	}
-	
+
 	// Check usage limit
 	if invite.MaxUses > 0 && invite.Used >= invite.MaxUses {
 		return nil, fmt.Errorf("invite code has reached usage limit")
 	}
-	
+
 	// Return a copy
 	inviteCopy := *invite
 	return &inviteCopy, nil
@@ -156,17 +156,17 @@ func (im *InviteManager) ValidateInvite(code string) (*InviteCode, error) {
 func (im *InviteManager) RevokeInvite(code string, revoker *FederatedAddress) error {
 	im.mu.Lock()
 	defer im.mu.Unlock()
-	
+
 	invite, exists := im.invites[code]
 	if !exists {
 		return fmt.Errorf("invite code not found")
 	}
-	
+
 	// Only inviter can revoke
 	if !invite.Inviter.Equal(revoker) {
 		return fmt.Errorf("only the inviter can revoke this invite")
 	}
-	
+
 	delete(im.invites, code)
 	return nil
 }
@@ -175,7 +175,7 @@ func (im *InviteManager) RevokeInvite(code string, revoker *FederatedAddress) er
 func (im *InviteManager) ListInvites(inviter *FederatedAddress) []*InviteCode {
 	im.mu.RLock()
 	defer im.mu.RUnlock()
-	
+
 	invites := make([]*InviteCode, 0)
 	for _, invite := range im.invites {
 		if invite.Inviter.Equal(inviter) {
@@ -184,7 +184,7 @@ func (im *InviteManager) ListInvites(inviter *FederatedAddress) []*InviteCode {
 			invites = append(invites, &inviteCopy)
 		}
 	}
-	
+
 	return invites
 }
 
@@ -192,23 +192,23 @@ func (im *InviteManager) ListInvites(inviter *FederatedAddress) []*InviteCode {
 func (im *InviteManager) GetInviteStats() map[string]interface{} {
 	im.mu.RLock()
 	defer im.mu.RUnlock()
-	
+
 	totalInvites := len(im.invites)
 	totalUsed := 0
 	expiringCount := 0
 	now := time.Now()
-	
+
 	for _, invite := range im.invites {
 		totalUsed += invite.Used
 		if invite.ExpiresAt.Sub(now) < 24*time.Hour {
 			expiringCount++
 		}
 	}
-	
+
 	return map[string]interface{}{
-		"total_active":     totalInvites,
-		"total_redeemed":   totalUsed,
-		"expiring_soon":    expiringCount,
+		"total_active":   totalInvites,
+		"total_redeemed": totalUsed,
+		"expiring_soon":  expiringCount,
 	}
 }
 
@@ -216,7 +216,7 @@ func (im *InviteManager) GetInviteStats() map[string]interface{} {
 func (im *InviteManager) cleanupExpired() {
 	ticker := time.NewTicker(im.cleanupInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -228,7 +228,7 @@ func (im *InviteManager) cleanupExpired() {
 				}
 			}
 			im.mu.Unlock()
-			
+
 		case <-im.stopCleanup:
 			return
 		}
@@ -247,13 +247,13 @@ func generateInviteCode() (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	
+
 	// Encode to base64 and make URL-safe
 	code := base64.URLEncoding.EncodeToString(b)
-	
+
 	// Remove padding if any
 	code = code[:16]
-	
+
 	return code, nil
 }
 
@@ -286,11 +286,11 @@ func ParseShareURL(url string) (coordinator string, code string, error error) {
 	if !strings.HasPrefix(url, prefix) {
 		return "", "", fmt.Errorf("invalid invite URL format")
 	}
-	
+
 	parts := strings.Split(strings.TrimPrefix(url, prefix), "/")
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("invalid invite URL format")
 	}
-	
+
 	return parts[0], parts[1], nil
 }

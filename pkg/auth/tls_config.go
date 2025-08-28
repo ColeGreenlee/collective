@@ -200,13 +200,13 @@ func (b *TLSConfigBuilder) loadCAPool(path string) (*x509.CertPool, error) {
 // LoadMultiCAPool loads multiple CA certificates from a directory for peer trust
 func (b *TLSConfigBuilder) LoadMultiCAPool(certDir string) (*x509.CertPool, error) {
 	caPool := x509.NewCertPool()
-	
+
 	// Try to load all CA certificates from the directory
 	entries, err := os.ReadDir(certDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read cert directory: %w", err)
 	}
-	
+
 	loadedCount := 0
 	for _, entry := range entries {
 		// Load both member CAs (*-ca.crt) and federation root CA (federation-root-ca.crt)
@@ -222,11 +222,11 @@ func (b *TLSConfigBuilder) LoadMultiCAPool(certDir string) (*x509.CertPool, erro
 			}
 		}
 	}
-	
+
 	if loadedCount == 0 {
 		return nil, fmt.Errorf("no CA certificates found in directory")
 	}
-	
+
 	return caPool, nil
 }
 

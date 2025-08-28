@@ -234,15 +234,15 @@ func (c *Coordinator) WriteFile(ctx context.Context, req *protocol.WriteFileRequ
 
 	// Store chunks on allocated nodes
 	storedChunks := []types.ChunkID{}
-	c.logger.Info("Storing chunks to nodes", 
+	c.logger.Info("Storing chunks to nodes",
 		zap.Int("chunk_count", len(chunks)),
 		zap.Int("node_count", len(nodeList)))
-	
+
 	for _, chunk := range chunks {
 		nodeIDs := allocations[chunk.ID]
 		successCount := 0
 
-		c.logger.Debug("Storing chunk", 
+		c.logger.Debug("Storing chunk",
 			zap.String("chunk_id", string(chunk.ID)),
 			zap.Int("target_nodes", len(nodeIDs)))
 
@@ -257,21 +257,21 @@ func (c *Coordinator) WriteFile(ctx context.Context, req *protocol.WriteFileRequ
 				continue
 			}
 
-			c.logger.Debug("Connecting to node", 
+			c.logger.Debug("Connecting to node",
 				zap.String("node_id", string(nodeID)),
 				zap.String("address", node.Address))
 
 			// Connect to node and store chunk
 			// Nodes require TLS authentication
-			c.logger.Info("Attempting to connect to node", 
+			c.logger.Info("Attempting to connect to node",
 				zap.String("node_id", string(nodeID)),
 				zap.String("address", node.Address),
 				zap.Bool("tls_enabled", c.authConfig != nil && c.authConfig.Enabled))
-			
+
 			conn, err := c.connectToNode(node.Address)
 			if err != nil {
-				c.logger.Warn("Failed to connect to node", 
-					zap.String("node", string(nodeID)), 
+				c.logger.Warn("Failed to connect to node",
+					zap.String("node", string(nodeID)),
 					zap.String("address", node.Address),
 					zap.Error(err))
 				continue

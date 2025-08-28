@@ -28,7 +28,6 @@ var GlobalPool = &ConnectionPool{
 	connections: make(map[string]*grpc.ClientConn),
 }
 
-
 // SecureDialWithCerts creates a secure gRPC connection using individual certificate paths
 func SecureDialWithCerts(ctx context.Context, target, caPath, certPath, keyPath string) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
@@ -44,7 +43,7 @@ func SecureDialWithCerts(ctx context.Context, target, caPath, certPath, keyPath 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TLS config from files: %w", err)
 	}
-	
+
 	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 
 	conn, err := grpc.DialContext(ctx, target, opts...)
@@ -54,7 +53,6 @@ func SecureDialWithCerts(ctx context.Context, target, caPath, certPath, keyPath 
 
 	return conn, nil
 }
-
 
 // CloseAll closes all connections in the pool
 func (p *ConnectionPool) CloseAll() {
@@ -66,7 +64,6 @@ func (p *ConnectionPool) CloseAll() {
 	}
 	p.connections = make(map[string]*grpc.ClientConn)
 }
-
 
 // createTLSConfigFromFiles creates a TLS configuration from individual certificate file paths
 func createTLSConfigFromFiles(caPath, certPath, keyPath string) (*tls.Config, error) {

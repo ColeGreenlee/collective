@@ -86,7 +86,7 @@ var authAutoInitCmd = &cobra.Command{
 			return fmt.Errorf("failed to create federation directory: %w", err)
 		}
 
-		// Step 1: Check/Create Federation CA hierarchy  
+		// Step 1: Check/Create Federation CA hierarchy
 		federationRootCert := filepath.Join(federationDir, "federation-root-ca.crt")
 		federationRootKey := filepath.Join(federationDir, "federation-root-ca.key")
 		caCertPath := filepath.Join(caDir, fmt.Sprintf("%s-ca.crt", memberID))
@@ -94,27 +94,27 @@ var authAutoInitCmd = &cobra.Command{
 
 		// Check if federation root CA exists
 		federationRootExists := fileExists(federationRootCert) && fileExists(federationRootKey)
-		
+
 		// Get federation domain from environment
 		federationDomain := os.Getenv("COLLECTIVE_FEDERATION_DOMAIN")
 		if federationDomain == "" {
 			federationDomain = "homelab.collective"
 		}
-		
+
 		if !federationRootExists {
 			logger.Info("Creating federation root CA", zap.String("federation_domain", federationDomain))
-			
+
 			// Create federation certificate manager with a temporary directory
 			federationCADir := filepath.Join(caDir, "federation-root")
 			os.MkdirAll(federationCADir, 0755)
-			
+
 			fedCertManager := auth.NewFederationCertManager(federationCADir)
-			
+
 			// Generate federation root CA
 			if err := fedCertManager.GenerateFederationRootCA(federationDomain, caValidity); err != nil {
 				return fmt.Errorf("failed to generate federation root CA: %w", err)
 			}
-			
+
 			// Copy the generated CA files to expected locations (can't move across volumes)
 			caCertData, err := os.ReadFile(filepath.Join(federationCADir, "ca.crt"))
 			if err != nil {
@@ -124,7 +124,7 @@ var authAutoInitCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to read generated federation root CA key: %w", err)
 			}
-			
+
 			if err := os.WriteFile(federationRootCert, caCertData, 0644); err != nil {
 				return fmt.Errorf("failed to copy federation root CA certificate: %w", err)
 			}
@@ -132,21 +132,21 @@ var authAutoInitCmd = &cobra.Command{
 				return fmt.Errorf("failed to copy federation root CA key: %w", err)
 			}
 			os.RemoveAll(federationCADir) // Clean up temp directory
-			
+
 			fmt.Printf("✓ Federation root CA generated for '%s'\n", federationDomain)
 		}
 
 		// Check if member intermediate CA exists
 		caExists := fileExists(caCertPath) && fileExists(caKeyPath)
-		
+
 		if !caExists || force {
 			logger.Info("Generating member intermediate CA", zap.String("member_id", memberID))
-			
+
 			// Create temporary directory for loading federation root CA
 			tempFedCADir := filepath.Join(caDir, "temp-federation-root")
 			os.MkdirAll(tempFedCADir, 0755)
 			defer os.RemoveAll(tempFedCADir)
-			
+
 			// Copy federation root CA files to temp directory with expected names
 			fedRootData, err := os.ReadFile(federationRootCert)
 			if err != nil {
@@ -156,58 +156,58 @@ var authAutoInitCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to read federation root CA key: %w", err)
 			}
-			
+
 			if err := os.WriteFile(filepath.Join(tempFedCADir, "ca.crt"), fedRootData, 0644); err != nil {
 				return fmt.Errorf("failed to copy federation root CA certificate: %w", err)
 			}
 			if err := os.WriteFile(filepath.Join(tempFedCADir, "ca.key"), fedRootKeyData, 0600); err != nil {
 				return fmt.Errorf("failed to copy federation root CA key: %w", err)
 			}
-			
+
 			// Load federation root CA
 			fedCertManager := auth.NewFederationCertManager(tempFedCADir)
 			if err := fedCertManager.LoadCA(); err != nil {
 				return fmt.Errorf("failed to load federation root CA: %w", err)
 			}
-			
+
 			// Generate member intermediate CA using federation hierarchy
 			memberDomain := fmt.Sprintf("%s.%s", memberID, federationDomain)
 			if err := fedCertManager.GenerateMemberCA(memberDomain, caValidity, caCertPath); err != nil {
 				return fmt.Errorf("failed to generate member intermediate CA: %w", err)
 			}
-			
+
 			// Copy member CA to shared federation directory for peer access
 			federationMemberCA := filepath.Join(federationDir, fmt.Sprintf("%s-ca.crt", memberID))
 			if caCertData, err := os.ReadFile(caCertPath); err == nil {
 				if err := os.WriteFile(federationMemberCA, caCertData, 0644); err != nil {
-					logger.Warn("Failed to copy member CA to federation directory", 
+					logger.Warn("Failed to copy member CA to federation directory",
 						zap.String("member_id", memberID), zap.Error(err))
 				} else {
-					logger.Info("Member CA copied to federation directory for peer access", 
+					logger.Info("Member CA copied to federation directory for peer access",
 						zap.String("member_id", memberID),
 						zap.String("path", federationMemberCA))
 				}
 			}
-			
+
 			fmt.Printf("✓ Member intermediate CA generated for '%s'\n", memberDomain)
 		} else {
 			logger.Info("Using existing member intermediate CA", zap.String("member_id", memberID))
-			
+
 			// Even for existing CAs, ensure they are copied to federation directory
 			federationMemberCA := filepath.Join(federationDir, fmt.Sprintf("%s-ca.crt", memberID))
 			if !fileExists(federationMemberCA) {
 				if caCertData, err := os.ReadFile(caCertPath); err == nil {
 					if err := os.WriteFile(federationMemberCA, caCertData, 0644); err != nil {
-						logger.Warn("Failed to copy existing member CA to federation directory", 
+						logger.Warn("Failed to copy existing member CA to federation directory",
 							zap.String("member_id", memberID), zap.Error(err))
 					} else {
-						logger.Info("Existing member CA copied to federation directory for peer access", 
+						logger.Info("Existing member CA copied to federation directory for peer access",
 							zap.String("member_id", memberID),
 							zap.String("path", federationMemberCA))
 					}
 				}
 			}
-			
+
 			fmt.Printf("✓ Using existing member intermediate CA for member '%s'\n", memberID)
 		}
 
@@ -277,7 +277,7 @@ var authAutoInitCmd = &cobra.Command{
 					fmt.Sprintf("%s-%s", memberID, componentType),
 					fmt.Sprintf("%s_%s", memberID, componentType),
 				)
-				
+
 				// Try to get container's IP address
 				if hostIP := getContainerIP(); hostIP != "" {
 					addresses = append(addresses, hostIP)
@@ -337,7 +337,7 @@ var authAutoInitCmd = &cobra.Command{
 
 		// Step 4: Copy all member CA certificates for peer trust
 		logger.Info("Copying peer member CA certificates for federation trust")
-		
+
 		// Look for member CA certificates in the shared federation directory
 		if entries, err := os.ReadDir(federationDir); err == nil {
 			copiedCount := 0
@@ -346,12 +346,12 @@ var authAutoInitCmd = &cobra.Command{
 				if strings.HasSuffix(entry.Name(), "-ca.crt") && entry.Name() != fmt.Sprintf("%s-ca.crt", memberID) {
 					sourcePath := filepath.Join(federationDir, entry.Name())
 					destPath := filepath.Join(caDir, entry.Name())
-					
+
 					if !fileExists(destPath) {
 						if certData, err := os.ReadFile(sourcePath); err == nil {
 							if err := os.WriteFile(destPath, certData, 0644); err == nil {
 								copiedCount++
-								logger.Debug("Copied peer member CA certificate", 
+								logger.Debug("Copied peer member CA certificate",
 									zap.String("cert", entry.Name()),
 									zap.String("from", sourcePath),
 									zap.String("to", destPath))

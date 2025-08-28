@@ -34,7 +34,7 @@ func (pe *PermissionEnforcer) extractCallerIdentity(ctx context.Context) (*feder
 	if !ok {
 		return nil, fmt.Errorf("no metadata in context")
 	}
-	
+
 	// Look for federated address in metadata
 	addresses := md.Get("federated-address")
 	if len(addresses) == 0 {
@@ -42,7 +42,7 @@ func (pe *PermissionEnforcer) extractCallerIdentity(ctx context.Context) (*feder
 		addr := fmt.Sprintf("coord@%s.%s", pe.memberID, pe.federationDomain)
 		return federation.ParseAddress(addr)
 	}
-	
+
 	return federation.ParseAddress(addresses[0])
 }
 
@@ -54,7 +54,7 @@ func (pe *PermissionEnforcer) checkPermission(ctx context.Context, path string, 
 			zap.Error(err))
 		return status.Error(codes.Unauthenticated, "authentication required")
 	}
-	
+
 	allowed, err := pe.permissionManager.CheckPermission(path, caller, right)
 	if err != nil {
 		pe.logger.Error("Permission check failed",
@@ -64,16 +64,16 @@ func (pe *PermissionEnforcer) checkPermission(ctx context.Context, path string, 
 			zap.Error(err))
 		return status.Error(codes.Internal, "permission check failed")
 	}
-	
+
 	if !allowed {
 		pe.logger.Warn("Permission denied",
 			zap.String("path", path),
 			zap.String("caller", caller.String()),
 			zap.String("right", string(right)))
-		return status.Errorf(codes.PermissionDenied, 
+		return status.Errorf(codes.PermissionDenied,
 			"access denied: %s permission required for %s", right, path)
 	}
-	
+
 	return nil
 }
 
@@ -114,7 +114,7 @@ func (pe *PermissionEnforcer) CreateDataStore(ctx context.Context, path string, 
 	if err != nil {
 		return status.Error(codes.Unauthenticated, "authentication required")
 	}
-	
+
 	// Check if caller has write permission on parent
 	parent := filepath.Dir(path)
 	if parent != "/" && parent != "." {
@@ -122,7 +122,7 @@ func (pe *PermissionEnforcer) CreateDataStore(ctx context.Context, path string, 
 			return err
 		}
 	}
-	
+
 	// Create the DataStore with caller as owner
 	if err := pe.permissionManager.CreateDataStore(path, caller, strategy); err != nil {
 		pe.logger.Error("Failed to create DataStore",
@@ -131,12 +131,12 @@ func (pe *PermissionEnforcer) CreateDataStore(ctx context.Context, path string, 
 			zap.Error(err))
 		return status.Error(codes.Internal, err.Error())
 	}
-	
+
 	pe.logger.Info("DataStore created",
 		zap.String("path", path),
 		zap.String("owner", caller.String()),
 		zap.Int("strategy", int(strategy)))
-	
+
 	return nil
 }
 
@@ -146,13 +146,13 @@ func (pe *PermissionEnforcer) GrantPermission(ctx context.Context, path string, 
 	if err := pe.checkPermission(ctx, path, federation.RightShare); err != nil {
 		return err
 	}
-	
+
 	// Parse subject address
 	subjectAddr, err := federation.ParseAddress(subject)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid subject address: %v", err)
 	}
-	
+
 	// Grant the permission
 	if err := pe.permissionManager.GrantPermission(path, subjectAddr, rights, nil); err != nil {
 		pe.logger.Error("Failed to grant permission",
@@ -161,12 +161,12 @@ func (pe *PermissionEnforcer) GrantPermission(ctx context.Context, path string, 
 			zap.Error(err))
 		return status.Error(codes.Internal, err.Error())
 	}
-	
+
 	pe.logger.Info("Permission granted",
 		zap.String("path", path),
 		zap.String("subject", subject),
 		zap.Any("rights", rights))
-	
+
 	return nil
 }
 
@@ -176,7 +176,7 @@ func (pe *PermissionEnforcer) RevokePermission(ctx context.Context, path string,
 	if err != nil {
 		return status.Error(codes.Unauthenticated, "authentication required")
 	}
-	
+
 	// Check if caller is owner or has SHARE permission
 	isOwner := pe.permissionManager.IsOwner(path, caller)
 	if !isOwner {
@@ -184,13 +184,13 @@ func (pe *PermissionEnforcer) RevokePermission(ctx context.Context, path string,
 			return err
 		}
 	}
-	
+
 	// Parse subject address
 	subjectAddr, err := federation.ParseAddress(subject)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid subject address: %v", err)
 	}
-	
+
 	// Revoke the permission
 	if err := pe.permissionManager.RevokePermission(path, subjectAddr); err != nil {
 		pe.logger.Error("Failed to revoke permission",
@@ -199,11 +199,11 @@ func (pe *PermissionEnforcer) RevokePermission(ctx context.Context, path string,
 			zap.Error(err))
 		return status.Error(codes.Internal, err.Error())
 	}
-	
+
 	pe.logger.Info("Permission revoked",
 		zap.String("path", path),
 		zap.String("subject", subject))
-	
+
 	return nil
 }
 
@@ -213,12 +213,12 @@ func (pe *PermissionEnforcer) GetPermissions(ctx context.Context, path string) (
 	if err := pe.checkPermission(ctx, path, federation.RightRead); err != nil {
 		return nil, err
 	}
-	
+
 	perms, err := pe.permissionManager.GetPermissions(path)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	
+
 	return perms, nil
 }
 
@@ -229,20 +229,20 @@ func (pe *PermissionEnforcer) InitializeDefaultDataStores() error {
 	if err != nil {
 		return fmt.Errorf("failed to parse local address: %w", err)
 	}
-	
+
 	// Create root DataStore
 	if err := pe.permissionManager.CreateDataStore("/", localAddr, federation.PlacementHybrid); err != nil {
 		// Ignore if already exists
 		pe.logger.Debug("Root DataStore might already exist", zap.Error(err))
 	}
-	
+
 	// Create default DataStores
 	defaultStores := map[string]federation.PlacementStrategy{
 		"/media":   federation.PlacementMedia,
 		"/backups": federation.PlacementBackup,
 		"/shared":  federation.PlacementHybrid,
 	}
-	
+
 	for path, strategy := range defaultStores {
 		if err := pe.permissionManager.CreateDataStore(path, localAddr, strategy); err != nil {
 			pe.logger.Debug("DataStore might already exist",
@@ -250,13 +250,13 @@ func (pe *PermissionEnforcer) InitializeDefaultDataStores() error {
 				zap.Error(err))
 		}
 	}
-	
+
 	// Grant read access to federation members on /shared
 	wildcardAddr, _ := federation.ParseAddress("*@*.collective.local")
 	pe.permissionManager.GrantPermission("/shared", wildcardAddr, []federation.Right{federation.RightRead}, nil)
-	
+
 	pe.logger.Info("Default DataStores initialized",
 		zap.String("member", string(pe.memberID)))
-	
+
 	return nil
 }

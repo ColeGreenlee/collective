@@ -58,9 +58,9 @@ func (fcm *FederationCertManager) GenerateFederationRootCA(federationDomain stri
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
-			Organization:  []string{"Collective Storage Federation"},
-			Country:       []string{"US"},
-			CommonName:    fmt.Sprintf("%s Root CA", federationDomain),
+			Organization: []string{"Collective Storage Federation"},
+			Country:      []string{"US"},
+			CommonName:   fmt.Sprintf("%s Root CA", federationDomain),
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(validity),
@@ -136,9 +136,9 @@ func (fcm *FederationCertManager) GenerateMemberCA(memberDomain string, validity
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
-			Organization:  []string{"Collective Storage Federation"},
-			Country:       []string{"US"},
-			CommonName:    fmt.Sprintf("%s Intermediate CA", memberDomain),
+			Organization: []string{"Collective Storage Federation"},
+			Country:      []string{"US"},
+			CommonName:   fmt.Sprintf("%s Intermediate CA", memberDomain),
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(validity),

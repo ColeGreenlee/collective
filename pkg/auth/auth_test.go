@@ -200,19 +200,19 @@ func TestAuthConfig(t *testing.T) {
 // Test DefaultAuthConfig
 func TestDefaultAuthConfig(t *testing.T) {
 	config := DefaultAuthConfig()
-	
+
 	if config.Enabled {
 		t.Error("Default auth config should be disabled")
 	}
-	
+
 	if !config.PeerVerification {
 		t.Error("Default auth config should have peer verification enabled")
 	}
-	
+
 	if config.RequireClientAuth {
 		t.Error("Default auth config should not require client auth by default")
 	}
-	
+
 	if config.MinTLSVersion != "1.2" {
 		t.Errorf("Default MinTLSVersion = %s, want 1.2", config.MinTLSVersion)
 	}
@@ -292,7 +292,7 @@ func TestCertificateValidation(t *testing.T) {
 		}
 
 		expiredCert, _ := x509.ParseCertificate(expiredCertDER)
-		
+
 		// Check if certificate is expired
 		now := time.Now()
 		if now.After(expiredCert.NotAfter) {
@@ -308,11 +308,11 @@ func TestCertificateValidation(t *testing.T) {
 func TestAuthInterceptor(t *testing.T) {
 	// Create a basic auth interceptor
 	interceptor := NewAuthInterceptor(nil, nil, false)
-	
+
 	if interceptor == nil {
 		t.Error("Failed to create auth interceptor")
 	}
-	
+
 	// Test that interceptor can be created with nil authenticator (for non-auth mode)
 	if interceptor.requireAuth {
 		t.Error("Interceptor should not require auth when created with false")
@@ -366,12 +366,12 @@ func BenchmarkCertificateGeneration(b *testing.B) {
 			Subject: pkix.Name{
 				Organization: []string{"Benchmark Test"},
 			},
-			NotBefore:    time.Now(),
-			NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-			KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			NotBefore:   time.Now(),
+			NotAfter:    time.Now().Add(365 * 24 * time.Hour),
+			KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		}
-		
+
 		x509.CreateCertificate(rand.Reader, &template, &template, &privKey.PublicKey, privKey)
 	}
 }

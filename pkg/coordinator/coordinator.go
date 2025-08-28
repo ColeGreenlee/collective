@@ -65,11 +65,11 @@ type Coordinator struct {
 
 	server   *grpc.Server
 	listener net.Listener
-	
+
 	// Bootstrap server for invite redemption (runs on insecure port)
 	bootstrapServer   *grpc.Server
 	bootstrapListener net.Listener
-	
+
 	// Invite management
 	inviteManager *federation.InviteManager
 
@@ -107,24 +107,24 @@ func NewWithAuth(cfg *config.CoordinatorConfig, memberID string, logger *zap.Log
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Coordinator{
-		memberID:              types.MemberID(memberID),
-		address:               cfg.Address,
-		logger:                logger,
-		config:                cfg,
-		authConfig:            authConfig,
-		peers:                 make(map[types.MemberID]*Peer),
-		nodes:                 make(map[types.NodeID]*types.StorageNode),
-		files:                 make(map[types.FileID]*types.File),
-		directories:           make(map[string]*types.Directory),
-		fileEntries:           make(map[string]*types.FileEntry),
-		fileLocks:             make(map[string]*sync.RWMutex),
-		chunkManager:          storage.NewChunkManager(),
-		chunkAllocations:      make(map[types.ChunkID][]types.NodeID),
-		fileChunks:            make(map[string][]types.ChunkID),
-		writeBuffers:          make(map[string]*WriteBuffer),
-		inviteManager:         federation.NewInviteManager(),
-		ctx:                   ctx,
-		cancel:                cancel,
+		memberID:         types.MemberID(memberID),
+		address:          cfg.Address,
+		logger:           logger,
+		config:           cfg,
+		authConfig:       authConfig,
+		peers:            make(map[types.MemberID]*Peer),
+		nodes:            make(map[types.NodeID]*types.StorageNode),
+		files:            make(map[types.FileID]*types.File),
+		directories:      make(map[string]*types.Directory),
+		fileEntries:      make(map[string]*types.FileEntry),
+		fileLocks:        make(map[string]*sync.RWMutex),
+		chunkManager:     storage.NewChunkManager(),
+		chunkAllocations: make(map[types.ChunkID][]types.NodeID),
+		fileChunks:       make(map[string][]types.ChunkID),
+		writeBuffers:     make(map[string]*WriteBuffer),
+		inviteManager:    federation.NewInviteManager(),
+		ctx:              ctx,
+		cancel:           cancel,
 	}
 }
 
@@ -186,26 +186,26 @@ func (c *Coordinator) Start() error {
 			portNum = p + 1000 // Bootstrap port is main port + 1000
 		}
 		bootstrapAddr := net.JoinHostPort(host, strconv.Itoa(portNum))
-		
+
 		bootstrapListener, err := net.Listen("tcp", bootstrapAddr)
 		if err != nil {
-			c.logger.Warn("Failed to start bootstrap server", 
+			c.logger.Warn("Failed to start bootstrap server",
 				zap.String("address", bootstrapAddr),
 				zap.Error(err))
 		} else {
 			c.bootstrapListener = bootstrapListener
-			c.bootstrapServer = grpc.NewServer(grpc.MaxRecvMsgSize(10*1024*1024)) // 10MB max for certificates
-			
+			c.bootstrapServer = grpc.NewServer(grpc.MaxRecvMsgSize(10 * 1024 * 1024)) // 10MB max for certificates
+
 			// Register a limited coordinator that only handles invite operations
 			protocol.RegisterCoordinatorServer(c.bootstrapServer, &BootstrapCoordinator{
 				coordinator: c,
 				logger:      c.logger.With(zap.String("server", "bootstrap")),
 			})
-			
+
 			c.logger.Info("Bootstrap server started for invite redemption",
 				zap.String("address", bootstrapAddr),
 				zap.String("member_id", string(c.memberID)))
-			
+
 			go func() {
 				if err := c.bootstrapServer.Serve(bootstrapListener); err != nil {
 					c.logger.Error("Bootstrap server failed", zap.Error(err))
@@ -225,21 +225,21 @@ func (c *Coordinator) Start() error {
 // GenerateInvite creates a new invitation code
 func (c *Coordinator) GenerateInvite(ctx context.Context, req *protocol.GenerateInviteRequest) (*protocol.GenerateInviteResponse, error) {
 	c.logger.Info("GenerateInvite request received")
-	
+
 	if c.inviteManager == nil {
 		return &protocol.GenerateInviteResponse{
 			Success: false,
 			Message: "Invite system not available",
 		}, nil
 	}
-	
+
 	// Get the inviter from context (in production, extract from client cert)
 	// For now, use the coordinator's member ID
 	inviter := &federation.FederatedAddress{
 		LocalPart: "coordinator",
 		Domain:    string(c.memberID) + ".collective.local",
 	}
-	
+
 	// Convert proto grants to federation grants
 	grants := make([]federation.DataStoreGrant, 0, len(req.Grants))
 	for _, g := range req.Grants {
@@ -252,7 +252,7 @@ func (c *Coordinator) GenerateInvite(ctx context.Context, req *protocol.Generate
 			Rights: rights,
 		})
 	}
-	
+
 	// Generate the invite
 	validity := time.Duration(req.ValiditySeconds) * time.Second
 	invite, err := c.inviteManager.GenerateInvite(inviter, grants, validity, int(req.MaxUses))
@@ -263,15 +263,15 @@ func (c *Coordinator) GenerateInvite(ctx context.Context, req *protocol.Generate
 			Message: fmt.Sprintf("Failed to generate invite: %v", err),
 		}, nil
 	}
-	
+
 	// Create share URL
 	shareURL := fmt.Sprintf("collective://join/%s:8001/%s", c.memberID, invite.Code)
-	
+
 	c.logger.Info("Successfully generated invite",
 		zap.String("code", invite.Code),
 		zap.String("inviter", inviter.String()),
 		zap.Int("max_uses", int(req.MaxUses)))
-	
+
 	return &protocol.GenerateInviteResponse{
 		Success:   true,
 		Code:      invite.Code,
@@ -324,12 +324,12 @@ func (c *Coordinator) ConnectToPeer(memberID, address string) error {
 			}
 		}
 	}
-	
+
 	// Fallback to insecure if TLS not configured
 	if len(dialOpts) == 0 {
 		dialOpts = append(dialOpts, grpc.WithInsecure())
 	}
-	
+
 	conn, err := grpc.Dial(address, dialOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to peer %s at %s: %w", memberID, address, err)
@@ -426,12 +426,12 @@ func (c *Coordinator) PeerConnect(ctx context.Context, req *protocol.PeerConnect
 				}
 			}
 		}
-		
+
 		// Fallback to insecure if TLS not configured
 		if len(dialOpts) == 0 {
 			dialOpts = append(dialOpts, grpc.WithInsecure())
 		}
-		
+
 		conn, err := grpc.Dial(req.Address, dialOpts...)
 		if err != nil {
 			return &protocol.PeerConnectResponse{Accepted: false}, nil
@@ -1239,7 +1239,7 @@ func (c *Coordinator) checkNodeHealth() {
 // connectToNode creates a gRPC connection to a storage node with proper TLS configuration
 func (c *Coordinator) connectToNode(address string) (*grpc.ClientConn, error) {
 	var dialOpts []grpc.DialOption
-	
+
 	// Use TLS if configured
 	if c.authConfig != nil && c.authConfig.Enabled {
 		tlsBuilder, err := auth.NewTLSConfigBuilder(c.authConfig)
@@ -1247,13 +1247,13 @@ func (c *Coordinator) connectToNode(address string) (*grpc.ClientConn, error) {
 			c.logger.Error("Failed to create TLS config builder", zap.Error(err))
 			return nil, fmt.Errorf("failed to create TLS config builder: %w", err)
 		}
-		
+
 		tlsConfig, err := tlsBuilder.BuildClientConfig()
 		if err != nil {
 			c.logger.Error("Failed to build client TLS config", zap.Error(err))
 			return nil, fmt.Errorf("failed to build client TLS config: %w", err)
 		}
-		
+
 		// Extract hostname from address for server name verification
 		host, _, err := net.SplitHostPort(address)
 		if err != nil {
@@ -1261,7 +1261,7 @@ func (c *Coordinator) connectToNode(address string) (*grpc.ClientConn, error) {
 			host = address
 		}
 		tlsConfig.ServerName = host
-		
+
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 		c.logger.Debug("Connecting to node with TLS", zap.String("address", address))
 	} else {
@@ -1269,9 +1269,8 @@ func (c *Coordinator) connectToNode(address string) (*grpc.ClientConn, error) {
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		c.logger.Debug("Connecting to node without TLS", zap.String("address", address))
 	}
-	
+
 	return grpc.Dial(address, dialOpts...)
 }
-
 
 // Directory Operations
